@@ -212,6 +212,28 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
 .cat-pill.active { background: #f59e0b; color: #111; border-color: #f59e0b; }
 
 /* ── Sección destacados ── */
+/* ── Carrusel de novedades ── */
+.novedades-wrap {
+  background: linear-gradient(135deg, #0f2015 0%, #1a1a2e 100%);
+  padding: 16px 20px; margin-bottom: 12px; border-radius: 16px; overflow: hidden;
+}
+.novedades-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.novedades-titulo { color: #f59e0b; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+.novedades-nav { display: flex; gap: 6px; }
+.nov-btn {
+  background: rgba(255,255,255,.1); border: none; color: #fff;
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; transition: background .15s;
+}
+.nov-btn:hover { background: rgba(255,255,255,.25); }
+.novedades-slider-outer { overflow: hidden; cursor: grab; }
+.novedades-slider-outer:active { cursor: grabbing; }
+.novedades-slider { display: flex; gap: 12px; transition: transform .4s ease; will-change: transform; }
+.novedades-slider .card { flex: 0 0 160px; min-width: 160px; }
+.nov-dots { display: flex; justify-content: center; gap: 5px; margin-top: 10px; }
+.nov-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.25); cursor: pointer; transition: background .2s; }
+.nov-dot.active { background: #f59e0b; }
+
 .destacados-wrap {
   background: linear-gradient(135deg, #111 0%, #1a1a2e 100%);
   padding: 20px; margin-bottom: 8px;
