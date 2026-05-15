@@ -226,13 +226,22 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
   display: flex; align-items: center; justify-content: center; transition: background .15s;
 }
 .nov-btn:hover { background: rgba(255,255,255,.25); }
-.novedades-slider-outer { overflow: hidden; cursor: grab; }
-.novedades-slider-outer:active { cursor: grabbing; }
-.novedades-slider { display: flex; gap: 12px; transition: transform .4s ease; will-change: transform; }
-.novedades-slider .card { flex: 0 0 160px; min-width: 160px; }
-.nov-dots { display: flex; justify-content: center; gap: 5px; margin-top: 10px; }
-.nov-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.25); cursor: pointer; transition: background .2s; }
-.nov-dot.active { background: #f59e0b; }
+.novedades-slider-outer {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 40px, black calc(100% - 40px), transparent);
+}
+.novedades-slider {
+  display: flex; gap: 12px;
+  width: max-content;
+  animation: novScroll 60s linear infinite;
+}
+.novedades-slider:hover { animation-play-state: paused; }
+.novedades-slider .card { flex: 0 0 160px; min-width: 160px; cursor: pointer; }
+@keyframes novScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 
 .destacados-wrap {
   background: linear-gradient(135deg, #111 0%, #1a1a2e 100%);

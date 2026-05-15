@@ -984,74 +984,17 @@ renderMasVistos();
   }, 800);
 })();
 
-// ── Carrusel de novedades ──────────────────────────────────────────────────────
+// ── Carrusel de novedades — pausa en touch mobile ─────────────────────────────
 (function() {
-  var slider  = document.getElementById("novSlider");
-  var outer   = document.getElementById("novOuter");
-  var btnPrev = document.getElementById("novPrev");
-  var btnNext = document.getElementById("novNext");
-  var dotsEl  = document.getElementById("novDots");
-  if (!slider || !outer) return;
-
-  var cards      = slider.querySelectorAll(".card");
-  var total      = cards.length;
-  var cardW      = 172; // card 160px + gap 12px
-  var visible    = Math.max(1, Math.floor(outer.offsetWidth / cardW));
-  var current    = 0;
-  var autoTimer  = null;
-
-  // Crear dots
-  var pages = Math.ceil(total / visible);
-  for (var i = 0; i < pages; i++) {
-    var dot = document.createElement("div");
-    dot.className = "nov-dot" + (i===0?" active":"");
-    dot.dataset.idx = i;
-    dot.addEventListener("click", function() { goTo(parseInt(this.dataset.idx)); });
-    dotsEl.appendChild(dot);
-  }
-
-  function goTo(idx) {
-    current = Math.max(0, Math.min(idx, total - visible));
-    slider.style.transform = "translateX(-" + (current * cardW) + "px)";
-    // Actualizar dots
-    var dots = dotsEl.querySelectorAll(".nov-dot");
-    dots.forEach(function(d, i) {
-      d.classList.toggle("active", i === Math.floor(current / visible));
-    });
-  }
-
-  function next() { goTo(current + visible >= total ? 0 : current + 1); }
-  function prev() { goTo(current <= 0 ? total - visible : current - 1); }
-
-  btnNext.addEventListener("click", function() { resetAuto(); next(); });
-  btnPrev.addEventListener("click", function() { resetAuto(); prev(); });
-
-  // Auto-deslizamiento cada 3 segundos
-  function startAuto() { autoTimer = setInterval(next, 3000); }
-  function resetAuto()  { clearInterval(autoTimer); startAuto(); }
-  startAuto();
-
-  // Swipe touch
-  var touchX = 0;
-  outer.addEventListener("touchstart", function(e) { touchX = e.touches[0].clientX; }, {passive:true});
-  outer.addEventListener("touchend",   function(e) {
-    var dx = touchX - e.changedTouches[0].clientX;
-    if (Math.abs(dx) > 40) { resetAuto(); dx > 0 ? next() : prev(); }
+  var slider = document.getElementById("novSlider");
+  if (!slider) return;
+  // En mobile el hover no funciona — pausar con touch
+  slider.addEventListener("touchstart", function() {
+    slider.style.animationPlayState = "paused";
   }, {passive:true});
-
-  // Swipe mouse
-  var mouseX = 0; var dragging = false;
-  outer.addEventListener("mousedown",  function(e) { dragging=true; mouseX=e.clientX; });
-  outer.addEventListener("mouseup",    function(e) {
-    if (!dragging) return; dragging=false;
-    var dx = mouseX - e.clientX;
-    if (Math.abs(dx) > 40) { resetAuto(); dx > 0 ? next() : prev(); }
-  });
-  outer.addEventListener("mouseleave", function() { dragging=false; });
-
-  // Pausar al hover
-  outer.addEventListener("mouseenter", function() { clearInterval(autoTimer); });
-  outer.addEventListener("mouseleave", function() { if (!dragging) startAuto(); });
+  slider.addEventListener("touchend", function() {
+    setTimeout(function() { slider.style.animationPlayState = "running"; }, 1500);
+  }, {passive:true});
 })();
 
 // ── Social proof ──────────────────────────────────────────────────────────────
