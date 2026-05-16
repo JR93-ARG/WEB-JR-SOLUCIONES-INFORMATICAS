@@ -837,6 +837,7 @@ function registrarVista(id, nombre, precio, imagen) {
     body: JSON.stringify({ id, nombre: nombre||"", precio: precio||"", imagen: imagen||"" })
   }).catch(() => {});
   renderMasVistos();
+  if (typeof renderDestacados === "function") renderDestacados();
 }
 
 function fmtMV(v) { return "$ " + Math.round(v).toLocaleString("es-AR"); }
@@ -851,6 +852,7 @@ fetch(API_MV + "/vistas-top", {
     data.vistas.forEach(function(v) { mv[v.id] = Math.max(mv[v.id]||0, v.count); });
     sessionStorage.setItem(MV_KEY, JSON.stringify(mv));
     renderMasVistos();
+    renderDestacados(); // actualizar destacados con datos reales
   }
 }).catch(() => renderMasVistos());
 
@@ -983,6 +985,169 @@ renderMasVistos();
     window.history.replaceState({}, "", window.location.pathname);
   }, 800);
 })();
+
+// ── Destacados dinámicos ──────────────────────────────────────────────────────
+function renderDestacados() {
+  var grid = document.getElementById("gridDestacados");
+  if (!grid) return;
+
+  var idx = window.CATALOGO_INDEX || [];
+  if (!idx.length) return;
+
+  var mv = {};
+  try { mv = JSON.parse(sessionStorage.getItem("jrMasVistos")||"{}"); } catch(e){}
+
+  // Score: vistas × 3 + precio normalizado
+  var maxPrecio = Math.max.apply(null, idx.map(function(p){ return p.precio||0; }));
+  var scored = idx
+    .filter(function(p){ return p.precio > 0; })
+    .map(function(p) {
+      var vistas    = mv[p.id] || 0;
+      var pctPrecio = maxPrecio > 0 ? (p.precio / maxPrecio) : 0;
+      return { p: p, score: vistas * 3 + pctPrecio * 2 };
+    })
+    .sort(function(a,b){ return b.score - a.score; })
+    .slice(0, 8)
+    .map(function(x){ return x.p; });
+
+  // Si no hay suficientes vistas, fallback a los más caros
+  if (scored.every(function(p){ return (mv[p.id]||0) === 0; })) {
+    scored = idx
+      .filter(function(p){ return p.precio > 0; })
+      .sort(function(a,b){ return b.precio - a.precio; })
+      .slice(0, 8);
+  }
+
+  // Renderizar cards
+  grid.innerHTML = scored.map(function(p) {
+    var precioCatalogo = p.precio;
+    var pctInd = precioCatalogo <= 20000  ? 5
+               : precioCatalogo <= 50000  ? 10
+               : precioCatalogo <= 100000 ? 15
+               : precioCatalogo <= 200000 ? 18 : 20;
+    var precioConDesc = Math.round(precioCatalogo * (1 - pctInd/100));
+    var b64 = btoa(unescape(encodeURIComponent(JSON.stringify({
+      id: p.id, name: p.name, href: p.href, imgUrl: p.imgUrl,
+      precioCatalogo: precioCatalogo, precioConDesc: precioConDesc,
+      pctIndTexto: pctInd, fuente: p.fuente, precioBase: p.precioBase
+    }))));
+    var vistas = mv[p.id] || 0;
+    var badgeVistas = vistas >= 5
+      ? '<span class="badge-vistas">' + vistas + ' vistas</span>' : '';
+    return '<div class="card" data-prod="' + b64 + '" onclick="abrirProductoCard(this)" style="cursor:pointer">'
+      + '<div class="card-img">'
+      + (p.imgUrl ? '<img src="' + p.imgUrl + '" alt="' + p.name + '" loading="lazy" referrerpolicy="no-referrer">' : '<div class="no-img">📦</div>')
+      + badgeVistas
+      + '</div>'
+      + '<div class="card-body">'
+      + '<p class="card-name">' + p.name + '</p>'
+      + '<p class="card-price-mp"><s>' + fmtMV(precioCatalogo) + '</s></p>'
+      + '<p class="card-price">' + fmtMV(precioConDesc) + '</p>'
+      + '<p class="card-price-label">' + pctInd + '% off · transferencia</p>'
+      + '<div class="card-actions" onclick="event.stopPropagation()">'
+      + '<button class="add-btn" onclick="addToCartFromBtn(this)"'
+      + ' data-id="' + p.id + '" data-name="' + p.name + '" data-price="' + precioCatalogo + '"'
+      + ' data-href="' + p.href + '" data-fuente="' + p.fuente + '" data-precio-base="' + p.precioBase + '">+ Agregar</button>'
+      + '</div></div></div>';
+  }).join("");
+}
+
+// Renderizar al cargar y cada vez que cambia el ranking de vistas
+renderDestacados();
+// Re-renderizar cuando lleguen datos de Railway
+setTimeout(renderDestacados, 2000);
+
+// ── Modal ¿Cómo comprar? ──────────────────────────────────────────────────────
+function abrirAyuda() { document.getElementById("ayudaOverlay").classList.add("open"); }
+function cerrarAyuda() { document.getElementById("ayudaOverlay").classList.remove("open"); }
+
+// ── Tutorial automático primera vez ──────────────────────────────────────────
+var TUTORIAL_KEY = "jrTutorialVisto";
+var tutorialPasos = [
+  {
+    selector: "#catDropdown",
+    titulo: "Categorías",
+    desc: "Tocá acá para navegar por tipos de productos.",
+    pos: "bottom"
+  },
+  {
+    selector: ".card",
+    titulo: "Tocá un producto",
+    desc: "Hacé click en cualquier producto para ver el precio, descuento y detalles.",
+    pos: "bottom"
+  },
+  {
+    selector: "#cartBtn",
+    titulo: "Tu carrito",
+    desc: "Cuando agregues productos aparecen acá. Desde el carrito finalizás la compra.",
+    pos: "bottom"
+  },
+  {
+    selector: "#btnAyuda",
+    titulo: "¿Dudas?",
+    desc: "Podés volver a ver esta guía cuando quieras tocando este botón.",
+    pos: "top"
+  }
+];
+
+var tutorialActual = 0;
+
+function mostrarTutorialPaso(idx) {
+  var overlay = document.getElementById("tutorialOverlay");
+  overlay.innerHTML = "";
+  if (idx >= tutorialPasos.length) {
+    overlay.classList.remove("open");
+    localStorage.setItem(TUTORIAL_KEY, "1");
+    return;
+  }
+  var paso = tutorialPasos[idx];
+  var target = document.querySelector(paso.selector);
+  if (!target) { mostrarTutorialPaso(idx+1); return; }
+
+  overlay.classList.add("open");
+  var rect = target.getBoundingClientRect();
+
+  // Resaltar elemento
+  var highlight = document.createElement("div");
+  highlight.style.cssText = "position:fixed;border:2px solid #f59e0b;border-radius:10px;pointer-events:none;z-index:499;transition:all .3s;box-shadow:0 0 0 9999px rgba(0,0,0,.5)";
+  highlight.style.top    = (rect.top - 4) + "px";
+  highlight.style.left   = (rect.left - 4) + "px";
+  highlight.style.width  = (rect.width + 8) + "px";
+  highlight.style.height = (rect.height + 8) + "px";
+  overlay.appendChild(highlight);
+
+  // Caja de texto
+  var box = document.createElement("div");
+  box.className = "tutorial-box";
+  var isBottom = paso.pos !== "top" && rect.top < window.innerHeight * 0.6;
+  if (isBottom) {
+    box.style.top  = (rect.bottom + 16) + "px";
+    box.style.left = Math.min(Math.max(rect.left, 12), window.innerWidth - 280) + "px";
+  } else {
+    box.style.bottom = (window.innerHeight - rect.top + 16) + "px";
+    box.style.left   = Math.min(Math.max(rect.left, 12), window.innerWidth - 280) + "px";
+  }
+
+  box.innerHTML =
+    '<div class="tutorial-titulo">' + paso.titulo + '</div>' +
+    '<div>' + paso.desc + '</div>' +
+    '<div class="tutorial-nav">' +
+    '<button class="t-skip" onclick="terminarTutorial()">Saltar</button>' +
+    '<span class="tutorial-progreso">' + (idx+1) + ' / ' + tutorialPasos.length + '</span>' +
+    '<button onclick="mostrarTutorialPaso(' + (idx+1) + ')">' + (idx+1 < tutorialPasos.length ? 'Siguiente →' : '¡Listo!') + '</button>' +
+    '</div>';
+  overlay.appendChild(box);
+}
+
+function terminarTutorial() {
+  document.getElementById("tutorialOverlay").classList.remove("open");
+  localStorage.setItem(TUTORIAL_KEY, "1");
+}
+
+// Mostrar tutorial si es la primera vez
+if (!localStorage.getItem(TUTORIAL_KEY)) {
+  setTimeout(function() { mostrarTutorialPaso(0); }, 2500);
+}
 
 // ── Carrusel de novedades — pausa en touch mobile ─────────────────────────────
 (function() {
