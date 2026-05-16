@@ -718,11 +718,17 @@ let catActiva     = "Todos";
 
 function filtrar() {
   const q = getQuery();
-  const secRecientes = document.getElementById("sec-recientes");
+  const secRecientes  = document.getElementById("sec-recientes");
+  const secDestacados = document.getElementById("sec-destacados");
+  const secNovedades  = document.querySelector(".novedades-wrap");
   const allSec = Array.from(document.querySelectorAll("[data-section]"));
+  const esTodos = catActiva === "Todos" && !q;
 
-  if (catActiva === "Todos" && !q) {
-    // Modo por defecto: mostrar sec-recientes + destacados, ocultar categorías
+  // Novedades y destacados solo visibles en vista principal
+  if (secNovedades)  secNovedades.style.display  = esTodos ? "" : "none";
+  if (secDestacados) secDestacados.style.display  = esTodos ? "" : "none";
+
+  if (esTodos) {
     allSec.forEach(sec => {
       const cat = sec.dataset.cat || "";
       if (cat === "Todos" || cat === "Destacados") sec.style.display = "";
@@ -732,18 +738,14 @@ function filtrar() {
     return;
   }
 
-  // Con búsqueda o categoría seleccionada
   if (secRecientes) secRecientes.style.display = "none";
   let visible = 0;
 
   allSec.forEach(sec => {
     const cat = sec.dataset.cat || "";
-    if (cat === "Todos") { sec.style.display = "none"; return; }
-    if (cat === "Destacados") { sec.style.display = "none"; return; }
-
+    if (cat === "Todos" || cat === "Destacados") { sec.style.display = "none"; return; }
     if (catActiva !== "Todos" && cat !== catActiva) { sec.style.display = "none"; return; }
     sec.style.display = "";
-
     const cards = sec.querySelectorAll(".card");
     let n = 0;
     cards.forEach(card => {
@@ -755,7 +757,6 @@ function filtrar() {
     if (n === 0) sec.style.display = "none";
   });
 
-  // Si hay búsqueda global, buscar también en sec-recientes
   if (q && catActiva === "Todos" && secRecientes) {
     secRecientes.style.display = "";
     const cards = secRecientes.querySelectorAll(".card");
@@ -1058,108 +1059,80 @@ renderDestacados();
 setTimeout(renderDestacados, 2000);
 
 // ── Modal ¿Cómo comprar? ──────────────────────────────────────────────────────
-function abrirAyuda() { document.getElementById("ayudaOverlay").classList.add("open"); }
-function cerrarAyuda() { document.getElementById("ayudaOverlay").classList.remove("open"); }
+var AYUDA_KEY = "jrAyudaVista";
 
-// ── Tutorial automático primera vez ──────────────────────────────────────────
-var TUTORIAL_KEY = "jrTutorialVisto";
-var tutorialPasos = [
-  {
-    selector: "#catDropdown",
-    titulo: "Categorías",
-    desc: "Tocá acá para navegar por tipos de productos.",
-    pos: "bottom"
-  },
-  {
-    selector: ".card",
-    titulo: "Tocá un producto",
-    desc: "Hacé click en cualquier producto para ver el precio, descuento y detalles.",
-    pos: "bottom"
-  },
-  {
-    selector: "#cartBtn",
-    titulo: "Tu carrito",
-    desc: "Cuando agregues productos aparecen acá. Desde el carrito finalizás la compra.",
-    pos: "bottom"
-  },
-  {
-    selector: "#btnAyuda",
-    titulo: "¿Dudas?",
-    desc: "Podés volver a ver esta guía cuando quieras tocando este botón.",
-    pos: "top"
-  }
-];
-
-var tutorialActual = 0;
-
-function mostrarTutorialPaso(idx) {
-  var overlay = document.getElementById("tutorialOverlay");
-  overlay.innerHTML = "";
-  if (idx >= tutorialPasos.length) {
-    overlay.classList.remove("open");
-    localStorage.setItem(TUTORIAL_KEY, "1");
-    return;
-  }
-  var paso = tutorialPasos[idx];
-  var target = document.querySelector(paso.selector);
-  if (!target) { mostrarTutorialPaso(idx+1); return; }
-
+function abrirAyuda() {
+  var overlay = document.getElementById("ayudaOverlay");
   overlay.classList.add("open");
-  var rect = target.getBoundingClientRect();
+  // Resetear checkbox al abrir manualmente
+  var chk = document.getElementById("chkNoMostrar");
+  if (chk) chk.checked = false;
+}
 
-  // Resaltar elemento
-  var highlight = document.createElement("div");
-  highlight.style.cssText = "position:fixed;border:2px solid #f59e0b;border-radius:10px;pointer-events:none;z-index:499;transition:all .3s;box-shadow:0 0 0 9999px rgba(0,0,0,.5)";
-  highlight.style.top    = (rect.top - 4) + "px";
-  highlight.style.left   = (rect.left - 4) + "px";
-  highlight.style.width  = (rect.width + 8) + "px";
-  highlight.style.height = (rect.height + 8) + "px";
-  overlay.appendChild(highlight);
-
-  // Caja de texto
-  var box = document.createElement("div");
-  box.className = "tutorial-box";
-  var isBottom = paso.pos !== "top" && rect.top < window.innerHeight * 0.6;
-  if (isBottom) {
-    box.style.top  = (rect.bottom + 16) + "px";
-    box.style.left = Math.min(Math.max(rect.left, 12), window.innerWidth - 280) + "px";
-  } else {
-    box.style.bottom = (window.innerHeight - rect.top + 16) + "px";
-    box.style.left   = Math.min(Math.max(rect.left, 12), window.innerWidth - 280) + "px";
+function cerrarAyuda() {
+  document.getElementById("ayudaOverlay").classList.remove("open");
+  var chk = document.getElementById("chkNoMostrar");
+  if (chk && chk.checked) {
+    localStorage.setItem(AYUDA_KEY, "1");
   }
-
-  box.innerHTML =
-    '<div class="tutorial-titulo">' + paso.titulo + '</div>' +
-    '<div>' + paso.desc + '</div>' +
-    '<div class="tutorial-nav">' +
-    '<button class="t-skip" onclick="terminarTutorial()">Saltar</button>' +
-    '<span class="tutorial-progreso">' + (idx+1) + ' / ' + tutorialPasos.length + '</span>' +
-    '<button onclick="mostrarTutorialPaso(' + (idx+1) + ')">' + (idx+1 < tutorialPasos.length ? 'Siguiente →' : '¡Listo!') + '</button>' +
-    '</div>';
-  overlay.appendChild(box);
 }
 
-function terminarTutorial() {
-  document.getElementById("tutorialOverlay").classList.remove("open");
-  localStorage.setItem(TUTORIAL_KEY, "1");
+// Mostrar automáticamente la primera vez
+if (!localStorage.getItem(AYUDA_KEY)) {
+  setTimeout(abrirAyuda, 1500);
 }
 
-// Mostrar tutorial si es la primera vez
-if (!localStorage.getItem(TUTORIAL_KEY)) {
-  setTimeout(function() { mostrarTutorialPaso(0); }, 2500);
-}
-
-// ── Carrusel de novedades — pausa en touch mobile ─────────────────────────────
+// ── Carrusel de novedades ─────────────────────────────────────────────────────
 (function() {
   var slider = document.getElementById("novSlider");
-  if (!slider) return;
-  // En mobile el hover no funciona — pausar con touch
-  slider.addEventListener("touchstart", function() {
-    slider.style.animationPlayState = "paused";
-  }, {passive:true});
-  slider.addEventListener("touchend", function() {
-    setTimeout(function() { slider.style.animationPlayState = "running"; }, 1500);
-  }, {passive:true});
+  var outer  = slider ? slider.parentElement : null;
+  if (!slider || !outer) return;
+
+  var touchStartX = 0;
+  var touchStartAnim = 0;
+  var isDragging = false;
+
+  // Obtener posición actual de la animación
+  function getAnimX() {
+    var style = window.getComputedStyle(slider);
+    var mat   = new WebKitCSSMatrix(style.transform);
+    return mat.m41 || 0;
+  }
+
+  // Pausar animación
+  function pausar() { slider.style.animationPlayState = "paused"; }
+  function reanudar() {
+    setTimeout(function() { slider.style.animationPlayState = "running"; }, 800);
+  }
+
+  // Touch en mobile
+  outer.addEventListener("touchstart", function(e) {
+    touchStartX = e.touches[0].clientX;
+    pausar();
+  }, { passive: true });
+
+  outer.addEventListener("touchend", function(e) {
+    var dx = touchStartX - e.changedTouches[0].clientX;
+    // Swipe fuerte → saltar a la siguiente sección del carrusel
+    if (Math.abs(dx) > 30) {
+      var currentX = getAnimX();
+      // Ajustar la animación según dirección del swipe
+      slider.style.transform = "translateX(" + (currentX - (dx > 0 ? 172 : -172)) + "px)";
+    }
+    reanudar();
+  }, { passive: true });
+
+  // Mouse hover pausa
+  outer.addEventListener("mouseenter", pausar);
+  outer.addEventListener("mouseleave", reanudar);
+
+  // Drag con mouse
+  outer.addEventListener("mousedown", function(e) {
+    isDragging = true; touchStartX = e.clientX; pausar();
+  });
+  window.addEventListener("mouseup", function(e) {
+    if (!isDragging) return; isDragging = false; reanudar();
+  });
 })();
 
 // ── Social proof ──────────────────────────────────────────────────────────────
