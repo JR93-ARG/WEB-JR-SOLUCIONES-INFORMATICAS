@@ -879,7 +879,19 @@ function abrirProducto(dataStr) {
 
   document.getElementById("prodNombre").textContent       = p.name;
   document.getElementById("prodPrecioTransf").textContent = precioTexto;
-  document.getElementById("prodPrecioMP").innerHTML       = "Con tarjeta/MP: <s>" + fmtMV(p.precioCatalogo) + "</s>";
+  document.getElementById("prodPrecioMP").innerHTML       =
+    'Con tarjeta/MP: <s>' + fmtMV(p.precioCatalogo) + '</s>' +
+    ' <span style="font-size:11px;color:#aaa">· precio de lista</span>';
+
+  // Mostrar ahorro claro
+  var ahorroEl = document.getElementById("prodAhorro");
+  if (ahorroEl && p.precioCatalogo && p.precioConDesc) {
+    var ahorro = p.precioCatalogo - p.precioConDesc;
+    ahorroEl.innerHTML =
+      '<span style="background:#dcfce7;color:#16a34a;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700">' +
+      'Ahorrás ' + fmtMV(ahorro) + ' (' + (p.pctIndTexto||5) + '% off) pagando con transferencia' +
+      '</span>';
+  }
 
   // Info de descuento por volumen
   const descInfoEl = document.getElementById("prodDescInfo");
@@ -926,12 +938,46 @@ function abrirProducto(dataStr) {
 
   var msgWA = encodeURIComponent(p.name + " - " + precioTexto + " (con transferencia) https://jr93-arg.github.io/WEB-JR-SOLUCIONES-INFORMATICAS/");
   document.getElementById("prodBtnShare").href = "https://wa.me/?text=" + msgWA;
+  // Conectar simulador de crédito con este producto
+  creditoPrecio    = p.precioCatalogo || 0;
+  creditoNombre    = p.name || "";
+  creditoAbierto   = false;
+  creditoAntPct    = 35;
+  creditoCuotasSel = creditoPrecio <= 200000 ? 3 : 6;
+  var toggle = document.getElementById("creditoToggle");
+  var body   = document.getElementById("creditoBody");
+  var slider = document.getElementById("creditoSlider");
+  if (toggle) toggle.classList.remove("open");
+  if (body)   body.classList.remove("open");
+  var formCred = document.getElementById("creditoForm");
+  var btnSolic = document.getElementById("creditoBtnSolicitar");
+  if (formCred) formCred.style.display = "none";
+  if (btnSolic) btnSolic.style.display = "flex";
+  // Configurar slider con monto mínimo y máximo en pesos
+  if (slider && creditoPrecio) {
+    var minAnticipo = Math.round(creditoPrecio * 0.35);
+    var maxAnticipo = Math.round(creditoPrecio * 0.70);
+    var step        = Math.round(creditoPrecio * 0.05); // pasos de 5%
+    slider.min   = minAnticipo;
+    slider.max   = maxAnticipo;
+    slider.step  = step;
+    slider.value = minAnticipo;
+  }
+  var antVal = document.getElementById("creditoAnticipoVal");
+  if (antVal && creditoPrecio) {
+    antVal.textContent = "$ " + Math.round(creditoPrecio * 0.35).toLocaleString("es-AR");
+  }
+
   document.getElementById("prodOverlay").classList.add("open");
   fetchDescripcion(p.href, p.fuente);
 }
 
 function cerrarProducto() {
   document.getElementById("prodOverlay").classList.remove("open");
+  // Restaurar botones de carrito y WA
+  var prodActions = document.querySelector(".prod-actions");
+  if (prodActions) prodActions.style.display = "flex";
+  creditoAbierto = false;
 }
 
 async function fetchDescripcion(href, fuente) {
@@ -1057,6 +1103,141 @@ function renderDestacados() {
 renderDestacados();
 // Re-renderizar cuando lleguen datos de Railway
 setTimeout(renderDestacados, 2000);
+
+// ── Simulador de crédito ──────────────────────────────────────────────────────
+var creditoAbierto   = false;
+var creditoCuotasSel = 6;
+var creditoAntPct    = 35;
+var creditoPrecio    = 0;
+var creditoNombre    = "";
+
+function toggleCredito() {
+  creditoAbierto = !creditoAbierto;
+  document.getElementById("creditoToggle").classList.toggle("open", creditoAbierto);
+  document.getElementById("creditoBody").classList.toggle("open", creditoAbierto);
+  // Ocultar/mostrar botones de carrito y WA
+  var prodActions = document.querySelector(".prod-actions");
+  if (prodActions) prodActions.style.display = creditoAbierto ? "none" : "flex";
+  if (creditoAbierto) renderCredito();
+}
+
+function onAnticipoChange(val) {
+  var monto = parseInt(val);
+  creditoAntPct = Math.round(monto / creditoPrecio * 100);
+  document.getElementById("creditoAnticipoVal").textContent = "$ " + monto.toLocaleString("es-AR");
+  renderCredito();
+}
+
+function calcCredito(precio, pct, cuotas) {
+  var anticipo = Math.round(precio * pct / 100);
+  // Si tenemos el monto exacto del slider lo usamos
+  var slider = document.getElementById("creditoSlider");
+  if (slider && parseInt(slider.value) > 0) {
+    anticipo = parseInt(slider.value);
+  }
+  var saldo  = precio - anticipo;
+  var i      = 0.10;
+  var cuota  = Math.round(saldo * i / (1 - Math.pow(1+i, -cuotas)));
+  var total  = anticipo + cuota * cuotas;
+  return { anticipo, saldo, intTotal: Math.round(cuota * cuotas - saldo), cuota, total: Math.round(total), cuotas };
+}
+
+function fmtC(n) { return "$ " + Math.round(n).toLocaleString("es-AR"); }
+function metC(l,v) { return '<div><div class="credito-metrica-label">'+l+'</div><div class="credito-metrica-valor">'+v+'</div></div>'; }
+
+function renderCredito() {
+  if (!creditoAbierto || !creditoPrecio) return;
+  var maxC = creditoPrecio <= 200000 ? 3 : 6;
+  if (creditoCuotasSel > maxC) creditoCuotasSel = maxC;
+
+  // Cuotas
+  var cuotasEl = document.getElementById("creditoCuotas");
+  cuotasEl.innerHTML = "";
+  [3,6].forEach(function(n) {
+    if (n > maxC) return;
+    var r   = calcCredito(creditoPrecio, creditoAntPct, n);
+    var sel = n === creditoCuotasSel;
+    var btn = document.createElement("div");
+    btn.className = "credito-cuota-btn" + (sel?" active":"");
+    btn.innerHTML = '<div class="credito-cuota-monto">'+fmtC(r.cuota)+'</div><div class="credito-cuota-label">'+n+' cuotas</div>';
+    btn.onclick = function() { creditoCuotasSel = n; renderCredito(); };
+    cuotasEl.appendChild(btn);
+  });
+
+  // Resumen — claro y sin redundancia
+  var r = calcCredito(creditoPrecio, creditoAntPct, creditoCuotasSel);
+  document.getElementById("creditoResumen").innerHTML =
+    '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:14px;text-align:center;margin-bottom:8px">' +
+      '<div style="font-size:12px;color:#854F0B;margin-bottom:2px;font-weight:600">Pagás hoy (anticipo ' + creditoAntPct + '%)</div>' +
+      '<div style="font-size:28px;font-weight:800;color:#111">' + fmtC(r.anticipo) + '</div>' +
+    '</div>' +
+    '<div style="background:#f0fdf4;border:1px solid #16a34a;border-radius:12px;padding:14px;text-align:center;margin-bottom:8px">' +
+      '<div style="font-size:12px;color:#166534;margin-bottom:2px;font-weight:600">Tu cuota mensual</div>' +
+      '<div style="font-size:28px;font-weight:800;color:#16a34a">' + fmtC(r.cuota) + '</div>' +
+      '<div style="font-size:11px;color:#888">x ' + creditoCuotasSel + ' cuotas · 6% interés mensual sobre saldo</div>' +
+    '</div>' +
+    '<div style="background:#f9f9f9;border-radius:10px;padding:10px;text-align:center">' +
+      '<div style="font-size:11px;color:#888;margin-bottom:2px">Total a pagar</div>' +
+      '<div style="font-size:18px;font-weight:800;color:#111">' + fmtC(r.total) + '</div>' +
+      '<div style="font-size:10px;color:#aaa">anticipo + ' + creditoCuotasSel + ' cuotas</div>' +
+    '</div>';
+
+  // Cuadro de cuotas
+  var saldo = r.saldo; var rows = "";
+  for (var i=1; i<=r.cuotas; i++) {
+    var intMes  = Math.round(saldo * 0.06);
+    var capital = i===r.cuotas ? saldo : r.cuota - intMes;
+    saldo = Math.max(0, Math.round(saldo - capital));
+    var cuotaR  = capital + intMes;
+    rows += "<tr><td>"+i+"</td><td>"+fmtC(cuotaR)+"</td><td>"+fmtC(intMes)+"</td><td>"+fmtC(saldo)+"</td></tr>";
+  }
+  document.getElementById("creditoCuadro").innerHTML =
+    "<table><thead><tr><th>N°</th><th>Importe</th><th>Interés</th><th>Saldo</th></tr></thead><tbody>"+rows+"</tbody></table>";
+
+  // Botón WA con formulario completo
+  document.getElementById("creditoBtnWA").onclick = function() {
+    var nombre    = (document.getElementById("cfNombre")?.value   || "").trim();
+    var dni       = (document.getElementById("cfDni")?.value      || "").trim();
+    var tel       = (document.getElementById("cfTel")?.value      || "").trim();
+    var domicilio = (document.getElementById("cfDomicilio")?.value || "").trim();
+    var barrio    = (document.getElementById("cfBarrio")?.value    || "").trim();
+    var trabajo   = (document.getElementById("cfTrabajo")?.value   || "").trim();
+
+    if (!nombre || !dni || !tel || !domicilio || !barrio || !trabajo) {
+      alert("Por favor completá todos los campos antes de enviar.");
+      return;
+    }
+
+    var r   = calcCredito(creditoPrecio, creditoAntPct, creditoCuotasSel);
+    var msg = encodeURIComponent(
+      "SOLICITUD DE FINANCIACION - JR Soluciones" +
+      " | Producto: " + creditoNombre +
+      " | Precio lista: " + fmtC(creditoPrecio) +
+      " | Anticipo: " + fmtC(r.anticipo) +
+      " | " + creditoCuotasSel + " cuotas de " + fmtC(r.cuota) +
+      " | Total: " + fmtC(r.total) +
+      " || DATOS: Nombre: " + nombre +
+      " | DNI: " + dni +
+      " | Tel: " + tel +
+      " | Domicilio: " + domicilio + " - " + barrio +
+      " | Trabajo: " + trabajo +
+      " || Adjunto fotos de DNI frente y dorso, boleta de servicio y comprobante de ingresos."
+    );
+    window.open("https://wa.me/543812235528?text=" + msg, "_blank");
+  };
+}
+
+function mostrarFormCredito() {
+  var form     = document.getElementById("creditoForm");
+  var btnSolic = document.getElementById("creditoBtnSolicitar");
+  if (form)     form.style.display     = "block";
+  if (btnSolic) btnSolic.style.display = "none";
+  // Limpiar campos
+  ["cfNombre","cfDni","cfTel","cfDomicilio","cfBarrio","cfTrabajo"].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+}
 
 // ── Modal ¿Cómo comprar? ──────────────────────────────────────────────────────
 var AYUDA_KEY = "jrAyudaVista";
