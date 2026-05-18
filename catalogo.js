@@ -988,40 +988,28 @@ function cerrarProducto() {
 
 async function fetchDescripcion(href, fuente, nombreProducto) {
   var descEl = document.getElementById("prodDesc");
-  descEl.innerHTML = '<div class="prod-desc-loading">Generando descripción...</div>';
+  descEl.innerHTML = '<div class="prod-desc-loading">Generando descripcion...</div>';
 
-  // Cache en sessionStorage para no repetir llamadas
-  var cacheKey = "desc_" + (href || nombreProducto).replace(/[^a-z0-9]/gi, "_").slice(0, 60);
+  var cacheKey = "desc_" + (nombreProducto || href).replace(/[^a-z0-9]/gi, "_").slice(0, 60);
   var cached   = sessionStorage.getItem(cacheKey);
   if (cached) { descEl.textContent = cached; return; }
 
   try {
-    var res = await fetch("https://api.anthropic.com/v1/messages", {
+    var res = await fetch("https://jrrailway-production.up.railway.app/descripcion", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [{
-          role: "user",
-          content: "Genera una descripcion comercial breve (3-4 oraciones) en espanol para este producto de tecnologia/electronica que vende una tienda en Argentina. " +
-                   "Menciona las caracteristicas principales, para que sirve y a quien le conviene. " +
-                   "Se directo, sin frases genericas. " +
-                   "Solo devuelve el texto de la descripcion, sin titulos ni formato adicional. " +
-                   "Producto: " + nombreProducto
-        }]
-      })
+      headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
+      body: JSON.stringify({ producto: nombreProducto })
     });
     var data = await res.json();
-    var desc = (data.content && data.content[0] && data.content[0].text) || "";
+    var desc = data.descripcion || "";
     if (desc) {
       sessionStorage.setItem(cacheKey, desc);
       descEl.textContent = desc;
     } else {
-      descEl.textContent = "Descripción no disponible.";
+      descEl.textContent = "Descripcion no disponible.";
     }
   } catch(e) {
-    descEl.textContent = "No se pudo cargar la descripción.";
+    descEl.textContent = "";
   }
 }
 
@@ -1227,6 +1215,20 @@ function renderCredito() {
     }
 
     var r   = calcCredito(creditoPrecio, creditoAntPct, creditoCuotasSel);
+
+    // Guardar en Sheets via Railway
+    fetch("https://jrrailway-production.up.railway.app/solicitud-credito", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
+      body: JSON.stringify({
+        nombre: nombre, dni: dni, telefono: tel,
+        domicilio: domicilio, barrio: barrio, trabajo: trabajo,
+        producto: creditoNombre, precio_lista: creditoPrecio,
+        anticipo: r.anticipo, cuotas: creditoCuotasSel,
+        cuota_mensual: r.cuota, total: r.total
+      })
+    }).catch(function(){});
+
     var msg = encodeURIComponent(
       "SOLICITUD DE FINANCIACION - JR Soluciones" +
       " | Producto: " + creditoNombre +
