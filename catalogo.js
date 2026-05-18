@@ -908,7 +908,13 @@ function abrirProducto(dataStr) {
         + '</div>'
       : '';
   }
-  document.getElementById("prodDesc").innerHTML = '<div class="prod-desc-loading">Cargando descripción...</div>';
+  document.getElementById("prodDesc").innerHTML = '<div class="prod-desc-loading">Generando descripción...</div>';
+  // Usar descripción pre-generada si existe, sino generar con IA
+  if (p.descripcion) {
+    document.getElementById("prodDesc").textContent = p.descripcion;
+  } else {
+    fetchDescripcion(p.href, p.fuente, p.name);
+  }
 
   var wrap = document.getElementById("prodImgWrap");
   wrap.innerHTML = '<button class="prod-close" onclick="cerrarProducto()">×</button>';
@@ -969,7 +975,7 @@ function abrirProducto(dataStr) {
   }
 
   document.getElementById("prodOverlay").classList.add("open");
-  fetchDescripcion(p.href, p.fuente);
+  fetchDescripcion(p.href, p.fuente, p.name);
 }
 
 function cerrarProducto() {
@@ -980,31 +986,43 @@ function cerrarProducto() {
   creditoAbierto = false;
 }
 
-async function fetchDescripcion(href, fuente) {
+async function fetchDescripcion(href, fuente, nombreProducto) {
   var descEl = document.getElementById("prodDesc");
-  if (!href) { descEl.textContent="Sin descripción disponible."; return; }
+  descEl.innerHTML = '<div class="prod-desc-loading">Generando descripción...</div>';
+
+  // Cache en sessionStorage para no repetir llamadas
+  var cacheKey = "desc_" + (href || nombreProducto).replace(/[^a-z0-9]/gi, "_").slice(0, 60);
+  var cached   = sessionStorage.getItem(cacheKey);
+  if (cached) { descEl.textContent = cached; return; }
+
   try {
-    var proxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(href);
-    var res   = await fetch(proxy);
-    var data  = await res.json();
-    var doc   = new DOMParser().parseFromString(data.contents||"","text/html");
-    var desc  = "";
-    var sels  = fuente==="DAZ Importadora"
-      ? [".woocommerce-product-details__short-description",".product-short-description",".entry-content"]
-      : [".o_field_html","#product_long_description",".product_description"];
-    for (var i=0; i<sels.length; i++) {
-      var el = doc.querySelector(sels[i]);
-      if (el && el.textContent.trim().length>30) { desc=el.textContent.trim(); break; }
+    var res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: "Genera una descripcion comercial breve (3-4 oraciones) en espanol para este producto de tecnologia/electronica que vende una tienda en Argentina. " +
+                   "Menciona las caracteristicas principales, para que sirve y a quien le conviene. " +
+                   "Se directo, sin frases genericas. " +
+                   "Solo devuelve el texto de la descripcion, sin titulos ni formato adicional. " +
+                   "Producto: " + nombreProducto
+        }]
+      })
+    });
+    var data = await res.json();
+    var desc = (data.content && data.content[0] && data.content[0].text) || "";
+    if (desc) {
+      sessionStorage.setItem(cacheKey, desc);
+      descEl.textContent = desc;
+    } else {
+      descEl.textContent = "Descripción no disponible.";
     }
-    if (!desc) {
-      var ps = doc.querySelectorAll("p");
-      for (var j=0; j<ps.length; j++) {
-        var t = ps[j].textContent.trim();
-        if (t.length>80 && t.length<2000) { desc=t; break; }
-      }
-    }
-    descEl.textContent = desc || "Descripción no disponible.";
-  } catch(e) { descEl.textContent="No se pudo cargar la descripción."; }
+  } catch(e) {
+    descEl.textContent = "No se pudo cargar la descripción.";
+  }
 }
 
 document.getElementById("prodOverlay").addEventListener("click", function(e) {
