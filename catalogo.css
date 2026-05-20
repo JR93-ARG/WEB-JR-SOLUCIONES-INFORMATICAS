@@ -181,6 +181,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
 .card-price-mp s { text-decoration: line-through; color: #ccc; }
 .card-price { font-size: 17px; font-weight: 800; color: #16a34a; }
 .card-price-label { font-size: 10px; color: #16a34a; font-weight: 600; margin-top: -4px; }
+.card-badge-desc { display:inline-block; font-size:10px; font-weight:700; color:#166534; background:#dcfce7; border-radius:4px; padding:2px 6px; margin:2px 0 6px; }
 .share-btn {
   background: #25D366; color: #fff; border: none;
   padding: 8px 9px; border-radius: 8px; cursor: pointer;

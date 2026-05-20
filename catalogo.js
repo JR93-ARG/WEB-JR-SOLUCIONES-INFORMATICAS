@@ -283,7 +283,7 @@ function abrirCheckout() {
   if (preview)     preview.style.display     = "none";
   if (area)        area.style.borderColor    = "#e0e0e0";
   const btnEnviar = document.getElementById("btnEnviar");
-  if (btnEnviar) { btnEnviar.disabled=true; btnEnviar.style.opacity=".4"; btnEnviar.style.cursor="default"; btnEnviar.textContent="Confirmar y enviar por WhatsApp"; }
+  if (btnEnviar) { btnEnviar.disabled=true; btnEnviar.style.opacity=".4"; btnEnviar.style.cursor="default"; btnEnviar.textContent="Confirmar pedido"; }
   const mpPagado = document.getElementById("mpPagado");
   if (mpPagado) mpPagado.style.display = "none";
 
@@ -515,7 +515,7 @@ document.querySelectorAll(".pago-opcion").forEach(op => {
     if (esMP) {
       btn.textContent = "✓ Ya pagué — Confirmar por WhatsApp";
     } else {
-      btn.textContent = "Confirmar y enviar por WhatsApp";
+      btn.textContent = "Confirmar pedido";
       verificarComprobante();
     }
   });
@@ -651,14 +651,14 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
     registrarEnSheets(filas).catch(e=>console.error("Sheets:",e));
 
     const confirmSub = esMP
-      ? `Se abrió WhatsApp con el resumen.<br><br>Para completar el pago usá el botón de Mercado Pago del paso anterior.<br><br><strong>Total: ${fmt(totalFinal)}</strong>`
-      : `Se abrió WhatsApp con el resumen.<br><br><strong>Adjuntá el comprobante en ese mismo chat.</strong><br><br><strong>Total a transferir: ${fmt(totalFinal)}</strong>`;
+      ? 'Tu pedido fue registrado.<br>Total a pagar: <strong>' + fmt(totalFinal) + '</strong>'
+      : 'Tu pedido fue registrado.<br>Total a transferir: <strong>' + fmt(totalFinal) + '</strong>';
     document.getElementById("confirmSub").innerHTML = confirmSub;
     irAStep(5);
   } catch(err) {
     console.error("Error:",err); alert("Hubo un error. Intentá de nuevo.");
   } finally {
-    btn.disabled=false; btn.textContent="Confirmar y enviar por WhatsApp";
+    btn.disabled=false; btn.textContent="Confirmar pedido";
   }
 });
 
@@ -880,17 +880,17 @@ function abrirProducto(dataStr) {
   document.getElementById("prodNombre").textContent       = p.name;
   document.getElementById("prodPrecioTransf").textContent = precioTexto;
   document.getElementById("prodPrecioMP").innerHTML       =
-    'Con tarjeta/MP: <s>' + fmtMV(p.precioCatalogo) + '</s>' +
-    ' <span style="font-size:11px;color:#aaa">· precio de lista</span>';
+    'Sin descuento (tarjeta / Mercado Pago): <strong>' + fmtMV(p.precioCatalogo) + '</strong>';
 
   // Mostrar ahorro claro
   var ahorroEl = document.getElementById("prodAhorro");
   if (ahorroEl && p.precioCatalogo && p.precioConDesc) {
     var ahorro = p.precioCatalogo - p.precioConDesc;
     ahorroEl.innerHTML =
-      '<span style="background:#dcfce7;color:#16a34a;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700">' +
-      'Ahorrás ' + fmtMV(ahorro) + ' (' + (p.pctIndTexto||5) + '% off) pagando con transferencia' +
-      '</span>';
+      '<span style="display:inline-flex;align-items:center;gap:5px;background:#dcfce7;color:#166534;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+      + 'Ahorrás ' + fmtMV(ahorro) + ' (' + (p.pctIndTexto||5) + '% off) con transferencia'
+      + '</span>';
   }
 
   // Info de descuento por volumen
