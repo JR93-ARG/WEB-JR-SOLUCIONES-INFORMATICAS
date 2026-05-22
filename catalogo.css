@@ -182,6 +182,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
 .card-price { font-size: 17px; font-weight: 800; color: #16a34a; }
 .card-price-label { font-size: 10px; color: #16a34a; font-weight: 600; margin-top: -4px; }
 .card-badge-desc { display:inline-block; font-size:10px; font-weight:700; color:#166534; background:#dcfce7; border-radius:4px; padding:2px 6px; margin:2px 0 6px; }
+.badge-mundial { position:absolute; top:6px; left:6px; background:#F7B731; color:#5A3A00; font-size:9px; font-weight:800; padding:2px 7px; border-radius:4px; z-index:2; }
 .share-btn {
   background: #25D366; color: #fff; border: none;
   padding: 8px 9px; border-radius: 8px; cursor: pointer;
@@ -251,17 +252,37 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
 }
 
 .destacados-wrap {
-  background: linear-gradient(135deg, #111 0%, #1a1a2e 100%);
-  padding: 20px; margin-bottom: 8px;
-  border-radius: 16px;
+  background: #003087;
+  padding: 0; margin-bottom: 8px;
+  border-radius: 16px; overflow: hidden;
+  position: relative;
+}
+.destacados-wrap::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255,255,255,.03) 0px, rgba(255,255,255,.03) 20%,
+    transparent 20%, transparent 40%
+  );
+  pointer-events: none;
+}
+.destacados-header {
+  background: #75AADB;
+  padding: 10px 16px 9px;
+  display: flex; align-items: center; justify-content: space-between;
 }
 .destacados-titulo {
-  color: #f59e0b; font-size: 11px; font-weight: 800;
-  letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px;
-  display: flex; align-items: center; gap: 8px;
+  color: #003087; font-size: 12px; font-weight: 800;
+  letter-spacing: .5px; text-transform: uppercase;
+  display: flex; align-items: center; gap: 6px;
 }
-.destacados-titulo::after { content: ""; flex: 1; height: 1px; background: rgba(245,158,11,.3); }
-.destacados-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.destacados-titulo .dest-stars { color: #F7B731; font-size: 12px; letter-spacing: 2px; }
+.destacados-sub { color: #003087; font-size: 10px; opacity: .7; }
+.destacados-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 10px; padding: 14px;
+}
 .destacados-grid .card { box-shadow: 0 4px 16px rgba(0,0,0,.3); }
 
 /* ── Sin resultados ── */

@@ -716,6 +716,15 @@ const noResults = document.getElementById("noResults");
 const allSections = Array.from(document.querySelectorAll("[data-section]"));
 let catActiva     = "Todos";
 
+function filtrarPorTermino(termino) {
+  catActiva = "Todos";
+  document.querySelectorAll(".cat-pill").forEach(function(p){ p.classList.remove("active"); });
+  var inp = document.getElementById("searchInput");
+  if (inp) inp.value = termino;
+  filtrar();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function filtrar() {
   const q = getQuery();
   const secRecientes  = document.getElementById("sec-recientes");
@@ -724,7 +733,7 @@ function filtrar() {
   const allSec = Array.from(document.querySelectorAll("[data-section]"));
   const esTodos = catActiva === "Todos" && !q;
 
-  // Novedades y destacados solo visibles en vista principal
+  // Novedades, destacados y mundial solo visibles en vista principal
   if (secNovedades)  secNovedades.style.display  = esTodos ? "" : "none";
   if (secDestacados) secDestacados.style.display  = esTodos ? "" : "none";
 
@@ -998,7 +1007,7 @@ async function fetchDescripcion(href, fuente, nombreProducto) {
     var res = await fetch("https://jrrailway-production.up.railway.app/descripcion", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
-      body: JSON.stringify({ producto: nombreProducto, href: href || "", fuente: fuente || "" })
+      body: JSON.stringify({ producto: nombreProducto })
     });
     var data = await res.json();
     var desc = data.descripcion || "";
@@ -1039,7 +1048,14 @@ renderMasVistos();
   }, 800);
 })();
 
-// ── Destacados dinámicos ──────────────────────────────────────────────────────
+// ── Destacados dinámicos — Mundial 2026 ──────────────────────────────────────
+var PALABRAS_MUNDIAL = ["tv", "smart tv", "television", "televisor", "parlante", "speaker", "proyector", "tv box", "android box", "bandera", "gorro", "camiseta", "auricular", "soundbar"];
+
+function esProductoMundial(nombre) {
+  var n = nombre.toLowerCase();
+  return PALABRAS_MUNDIAL.some(function(w) { return n.indexOf(w) >= 0; });
+}
+
 function renderDestacados() {
   var grid = document.getElementById("gridDestacados");
   if (!grid) return;
@@ -1050,28 +1066,44 @@ function renderDestacados() {
   var mv = {};
   try { mv = JSON.parse(sessionStorage.getItem("jrMasVistos")||"{}"); } catch(e){}
 
-  // Score: vistas × 3 + precio normalizado
   var maxPrecio = Math.max.apply(null, idx.map(function(p){ return p.precio||0; }));
-  var scored = idx
-    .filter(function(p){ return p.precio > 0; })
+
+  // Primero productos mundialeros con más vistas o precio alto
+  var mundiales = idx
+    .filter(function(p){ return p.precio > 0 && esProductoMundial(p.name); })
     .map(function(p) {
-      var vistas    = mv[p.id] || 0;
-      var pctPrecio = maxPrecio > 0 ? (p.precio / maxPrecio) : 0;
-      return { p: p, score: vistas * 3 + pctPrecio * 2 };
+      var vistas = mv[p.id] || 0;
+      var pctP   = maxPrecio > 0 ? (p.precio / maxPrecio) : 0;
+      return { p: p, score: vistas * 3 + pctP * 2 + 10 }; // bonus por ser mundialero
     })
     .sort(function(a,b){ return b.score - a.score; })
-    .slice(0, 8)
+    .slice(0, 6)
     .map(function(x){ return x.p; });
 
-  // Si no hay suficientes vistas, fallback a los más caros
-  if (scored.every(function(p){ return (mv[p.id]||0) === 0; })) {
+  // Completar con los más vistos generales si hay menos de 8
+  var resto = idx
+    .filter(function(p){
+      return p.precio > 0 && !esProductoMundial(p.name) &&
+             !mundiales.find(function(m){ return m.id === p.id; });
+    })
+    .map(function(p) {
+      var vistas = mv[p.id] || 0;
+      var pctP   = maxPrecio > 0 ? (p.precio / maxPrecio) : 0;
+      return { p: p, score: vistas * 3 + pctP * 2 };
+    })
+    .sort(function(a,b){ return b.score - a.score; })
+    .slice(0, 8 - mundiales.length)
+    .map(function(x){ return x.p; });
+
+  // Si no hay nada mundialero, fallback a los más caros
+  var scored = mundiales.concat(resto);
+  if (!scored.length) {
     scored = idx
       .filter(function(p){ return p.precio > 0; })
       .sort(function(a,b){ return b.precio - a.precio; })
       .slice(0, 8);
   }
 
-  // Renderizar cards
   grid.innerHTML = scored.map(function(p) {
     var precioCatalogo = p.precio;
     var pctInd = precioCatalogo <= 20000  ? 5
@@ -1085,25 +1117,29 @@ function renderDestacados() {
       pctIndTexto: pctInd, fuente: p.fuente, precioBase: p.precioBase
     }))));
     var vistas = mv[p.id] || 0;
-    var badgeVistas = vistas >= 5
-      ? '<span class="badge-vistas">' + vistas + ' vistas</span>' : '';
+    var esMundial = esProductoMundial(p.name);
+    var badge = esMundial
+      ? '<span class="badge-mundial">⚽ Mundial</span>'
+      : (vistas >= 5 ? '<span class="badge-vistas">' + vistas + ' vistas</span>' : '');
     return '<div class="card" data-prod="' + b64 + '" onclick="abrirProductoCard(this)" style="cursor:pointer">'
       + '<div class="card-img">'
       + (p.imgUrl ? '<img src="' + p.imgUrl + '" alt="' + p.name + '" loading="lazy" referrerpolicy="no-referrer">' : '<div class="no-img">📦</div>')
-      + badgeVistas
+      + badge
       + '</div>'
       + '<div class="card-body">'
       + '<p class="card-name">' + p.name + '</p>'
       + '<p class="card-price-mp"><s>' + fmtMV(precioCatalogo) + '</s></p>'
       + '<p class="card-price">' + fmtMV(precioConDesc) + '</p>'
-      + '<p class="card-price-label">' + pctInd + '% off · transferencia</p>'
+      + '<span class="card-badge-desc">' + pctInd + '% off con transferencia</span>'
       + '<div class="card-actions" onclick="event.stopPropagation()">'
       + '<button class="add-btn" onclick="addToCartFromBtn(this)"'
       + ' data-id="' + p.id + '" data-name="' + p.name + '" data-price="' + precioCatalogo + '"'
-      + ' data-href="' + p.href + '" data-fuente="' + p.fuente + '" data-precio-base="' + p.precioBase + '">+ Agregar</button>'
-      + '</div></div></div>';
+      + ' data-href="' + p.href + '" data-fuente="' + p.fuente + '" data-precio-base="' + p.precioBase + '">'
+      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>Agregar'
+      + '</button></div></div></div>';
   }).join("");
 }
+
 
 // Renderizar al cargar y cada vez que cambia el ranking de vistas
 renderDestacados();
