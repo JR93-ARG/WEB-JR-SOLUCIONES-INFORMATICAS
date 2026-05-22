@@ -491,7 +491,7 @@ function actualizarPaso4() {
   // Transferencia: precio catálogo - descuento proporcional
   document.getElementById("precioTransferencia").textContent = fmt(totalTransf);
   document.getElementById("ahorroTransferencia").textContent =
-    "✓ Ahorras " + fmt(descuento) + " (" + pctTexto + "% off pagando por transferencia)";
+    "✓ Ahorras " + fmt(descuento) + " (" + pctTexto + "% off por transferencia)";
   document.getElementById("pagoMonto").textContent = fmt(totalTransf);
 
   // MP: precio catálogo sin descuento
@@ -889,10 +889,9 @@ function abrirProducto(dataStr) {
     ahorroEl.innerHTML =
       '<span style="display:inline-flex;align-items:center;gap:5px;background:#dcfce7;color:#166534;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700">'
       + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
-      + 'Ahorrás ' + fmtMV(ahorro) + ' (' + (p.pctIndTexto||5) + '% off) pagando con transferencia <br>'
+      + 'Ahorrás ' + fmtMV(ahorro) + ' (' + (p.pctIndTexto||5) + '% off) con transferencia'
       + '</span>';
-
-    }
+  }
 
   // Info de descuento por volumen
   const descInfoEl = document.getElementById("prodDescInfo");
@@ -902,9 +901,9 @@ function abrirProducto(dataStr) {
     descInfoEl.innerHTML = pc > 0
       ? '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;font-size:11px;color:#555;margin-top:4px">'
         + '<strong style="color:#f59e0b">💡 Este artículo tiene ' + pctInd + '% off pagando con transferencia</strong><br>'
-        + ' <br>'
-        + 'Mientras más artículos sumes, mayor descuento: &nbsp;&nbsp;• Hasta <strong>20% off</strong><br>'
-        + ' <br>'
+        + 'Mientras más artículos sumes, mayor descuento en el total:<br>'
+        + '&nbsp;&nbsp;• Hasta $20k → 5% · $20k–$50k → 10% · $50k–$100k → 15%<br>'
+        + '&nbsp;&nbsp;• $100k–$200k → 18% · +$200k → <strong>20% off</strong><br>'
         + '<em>El descuento final se calcula sobre el total del carrito.</em>'
         + '</div>'
       : '';
@@ -999,7 +998,7 @@ async function fetchDescripcion(href, fuente, nombreProducto) {
     var res = await fetch("https://jrrailway-production.up.railway.app/descripcion", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
-      body: JSON.stringify({ producto: nombreProducto })
+      body: JSON.stringify({ producto: nombreProducto, href: href || "", fuente: fuente || "" })
     });
     var data = await res.json();
     var desc = data.descripcion || "";
