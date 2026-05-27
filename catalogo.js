@@ -122,7 +122,7 @@ document.getElementById("btnShareCart").addEventListener("click", () => {
     `*Total aprox: ${fmt(total)}* (pagando con transferencia)`,
     "",
     "Ver catálogo completo:",
-    "https://jr93-arg.github.io/WEB-JR-SOLUCIONES-INFORMATICAS/"
+    "https://www.jrshop.com.ar/"
   ].join("\n");
   window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
 });
@@ -951,7 +951,7 @@ function abrirProducto(dataStr) {
     setTimeout(function(){btnAgregar.textContent="+ Agregar al carrito";btnAgregar.style.background="";},1500);
   };
 
-  var msgWA = encodeURIComponent(p.name + " - " + precioTexto + " (con transferencia) https://jr93-arg.github.io/WEB-JR-SOLUCIONES-INFORMATICAS/");
+  var msgWA = encodeURIComponent(p.name + " - " + precioTexto + " (con transferencia) https://www.jrshop.com.ar/");
   document.getElementById("prodBtnShare").href = "https://wa.me/?text=" + msgWA;
   // Conectar simulador de crédito con este producto
   creditoPrecio    = p.precioCatalogo || 0;
