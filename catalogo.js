@@ -124,7 +124,7 @@ document.getElementById("btnShareCart").addEventListener("click", () => {
     "Ver catálogo completo:",
     "https://www.jrshop.com.ar/"
   ].join("\n");
-  window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank");
+  window.open("https://wa.me/543812235528?text="+encodeURIComponent(msg),"_blank");
 });
 
 document.getElementById("btnCheckout").addEventListener("click", () => {
@@ -950,9 +950,6 @@ function abrirProducto(dataStr) {
     btnAgregar.textContent="✓ Agregado"; btnAgregar.style.background="#16a34a";
     setTimeout(function(){btnAgregar.textContent="+ Agregar al carrito";btnAgregar.style.background="";},1500);
   };
-
-  var msgWA = encodeURIComponent(p.name + " - " + precioTexto + " (con transferencia) https://www.jrshop.com.ar/");
-  document.getElementById("prodBtnShare").href = "https://wa.me/?text=" + msgWA;
   // Conectar simulador de crédito con este producto
   creditoPrecio    = p.precioCatalogo || 0;
   creditoNombre    = p.name || "";
