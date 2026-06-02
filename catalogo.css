@@ -581,7 +581,7 @@ footer { text-align: center; font-size: 12px; color: #aaa; padding: 24px; }
 .prod-desc-loading { color: #aaa; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .prod-desc-loading::before { content: ""; width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #f59e0b; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.prod-actions { display: flex; gap: 10px; margin-top: 4px; }
+.prod-actions { display: flex; gap: 10px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
 .prod-add { flex: 1; background: #111; color: #fff; border: none; padding: 13px; border-radius: 12px; cursor: pointer; font-size: 15px; font-weight: 700; transition: background .15s; }
 .prod-add:hover { background: #333; }
 .prod-share { background: #25D366; color: #fff; border: none; padding: 13px 16px; border-radius: 12px; cursor: pointer; font-size: 18px; transition: background .15s; text-decoration: none; display: flex; align-items: center; }
