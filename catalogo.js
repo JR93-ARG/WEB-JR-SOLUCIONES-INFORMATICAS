@@ -42,6 +42,19 @@ function changeQty(key, delta) {
 }
 
 function removeItem(key) { cart = cart.filter(i => i.key !== key); saveCart(); }
+function limpiarTextoCliente(str) {
+  return String(str || "")
+    .replace(/Â½/g, "½").replace(/Â¼/g, "¼").replace(/Â¾/g, "¾")
+    .replace(/Â°/g, "°").replace(/Â·/g, "·").replace(/Âº/g, "º")
+    .replace(/Ã±/g, "ñ").replace(/Ã/g, "Ñ")
+    .replace(/Ã¡/g, "á").replace(/Ã©/g, "é").replace(/Ã­/g, "í")
+    .replace(/Ã³/g, "ó").replace(/Ãº/g, "ú")
+    .replace(/Ã/g, "Á").replace(/Ã/g, "É")
+    .replace(/Ã/g, "Í").replace(/Ã/g, "Ó").replace(/Ã/g, "Ú")
+    .replace(/Â[^sw]/g, "").replace(/Ã[^sw]/g, "")
+    .replace(/s+/g, " ").trim();
+}
+
 function fmt(v) { return "$ " + Math.round(v).toLocaleString("es-AR"); }
 
 function renderCart() {
@@ -886,7 +899,7 @@ function abrirProducto(dataStr) {
   // Registrar vista con datos del producto para el preview de WhatsApp
   registrarVista(p.id, p.name, precioTexto, p.imgUrl||"");
 
-  document.getElementById("prodNombre").textContent       = p.name;
+  document.getElementById("prodNombre").textContent = limpiarTextoCliente(p.name);
   document.getElementById("prodPrecioTransf").textContent = precioTexto;
   document.getElementById("prodPrecioMP").innerHTML       =
     'Sin descuento (tarjeta / Mercado Pago): <strong>' + fmtMV(p.precioCatalogo) + '</strong>';
@@ -1124,7 +1137,7 @@ function renderDestacados() {
       + badge
       + '</div>'
       + '<div class="card-body">'
-      + '<p class="card-name">' + p.name + '</p>'
+      + '<p class="card-name">' + limpiarTextoCliente(p.name) + '</p>'
       + '<p class="card-price-mp"><s>' + fmtMV(precioCatalogo) + '</s></p>'
       + '<p class="card-price">' + fmtMV(precioConDesc) + '</p>'
       + '<span class="card-badge-desc">' + pctInd + '% off con transferencia</span>'
