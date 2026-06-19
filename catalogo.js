@@ -708,16 +708,15 @@ document.querySelectorAll(".btn-back").forEach(btn => {
 renderCart();
   
 
-const searchInput = document.getElementById("buscar")
-  || document.getElementById("buscarMobile")
+const searchInput = document.getElementById("buscarMobile")
   || document.getElementById("buscarDesktop");
 
-// Sincronizar los 3 inputs de búsqueda
-["buscar","buscarMobile","buscarDesktop"].forEach(id => {
+// Sincronizar los 2 inputs de búsqueda (desktop y mobile)
+["buscarMobile","buscarDesktop"].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener("input", () => {
     const q = el.value;
-    ["buscar","buscarMobile","buscarDesktop"].forEach(sid => {
+    ["buscarMobile","buscarDesktop"].forEach(sid => {
       const s = document.getElementById(sid);
       if (s && s !== el) s.value = q;
     });
@@ -732,8 +731,10 @@ let catActiva     = "Todos";
 function filtrarPorTermino(termino) {
   catActiva = "Todos";
   document.querySelectorAll(".cat-pill").forEach(function(p){ p.classList.remove("active"); });
-  var inp = document.getElementById("searchInput");
-  if (inp) inp.value = termino;
+  ["buscarDesktop","buscarMobile"].forEach(function(id){
+    var inp = document.getElementById(id);
+    if (inp) inp.value = termino;
+  });
   filtrar();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -795,10 +796,10 @@ function filtrar() {
   noResults.style.display = visible === 0 ? "block" : "none";
 }
 
-searchInput.addEventListener("input", filtrar);
+if (searchInput) searchInput.addEventListener("input", filtrar);
 
 function getQuery() {
-  return (document.getElementById("buscarDesktop") || document.getElementById("buscarMobile") || document.getElementById("buscar"))?.value.toLowerCase().trim() || "";
+  return (document.getElementById("buscarDesktop") || document.getElementById("buscarMobile"))?.value.toLowerCase().trim() || "";
 }
 
 // Dropdown de categorías
