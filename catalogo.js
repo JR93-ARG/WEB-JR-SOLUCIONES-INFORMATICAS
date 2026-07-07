@@ -747,11 +747,11 @@ function filtrar() {
   const allSec = Array.from(document.querySelectorAll("[data-section]"));
   const esTodos = catActiva === "Todos" && !q;
 
-  // Novedades, destacados y mundial solo visibles en vista principal
+  // Novedades y destacados solo visibles en vista principal
   if (secNovedades)  secNovedades.style.display  = esTodos ? "" : "none";
   if (secDestacados) secDestacados.style.display  = esTodos ? "" : "none";
 
-  if (esTodos) {
+  if (esTodos && _sortActual === "novedad") {
     allSec.forEach(sec => {
       const cat = sec.dataset.cat || "";
       if (cat === "Todos" || cat === "Destacados") sec.style.display = "";
@@ -763,6 +763,26 @@ function filtrar() {
 
   if (secRecientes) secRecientes.style.display = "none";
   let visible = 0;
+
+  // Función para ordenar las cards dentro de un grid
+  function sortGrid(grid) {
+    const cards = Array.from(grid.querySelectorAll(".card:not(.hidden)"));
+    if (_sortActual === "novedad" || cards.length < 2) return;
+    cards.sort(function(a, b) {
+      const getPrice = function(c) {
+        const txt = c.querySelector(".card-price")?.textContent || "0";
+        return parseFloat(txt.replace(/[^0-9.]/g,"")) || 0;
+      };
+      const getNombre = function(c) {
+        return c.querySelector(".card-name")?.textContent || "";
+      };
+      if (_sortActual === "precio-asc")  return getPrice(a) - getPrice(b);
+      if (_sortActual === "precio-desc") return getPrice(b) - getPrice(a);
+      if (_sortActual === "nombre")      return getNombre(a).localeCompare(getNombre(b));
+      return 0;
+    });
+    cards.forEach(function(c){ grid.appendChild(c); });
+  }
 
   allSec.forEach(sec => {
     const cat = sec.dataset.cat || "";
@@ -777,20 +797,22 @@ function filtrar() {
       card.classList.toggle("hidden", !show);
       if (show) { visible++; n++; }
     });
-    if (n === 0) sec.style.display = "none";
+    if (n === 0) { sec.style.display = "none"; return; }
+    sortGrid(sec.querySelector(".grid"));
   });
 
-  if (q && catActiva === "Todos" && secRecientes) {
+  if ((q || _sortActual !== "novedad") && catActiva === "Todos" && secRecientes) {
     secRecientes.style.display = "";
     const cards = secRecientes.querySelectorAll(".card");
     let n = 0;
     cards.forEach(card => {
       const name = card.querySelector(".card-name")?.textContent.toLowerCase() || "";
-      const show = name.includes(q);
+      const show = !q || name.includes(q);
       card.classList.toggle("hidden", !show);
       if (show) { visible++; n++; }
     });
     if (n === 0) secRecientes.style.display = "none";
+    else sortGrid(secRecientes.querySelector(".grid"));
   }
 
   noResults.style.display = visible === 0 ? "block" : "none";
@@ -803,6 +825,33 @@ function getQuery() {
 }
 
 // Dropdown de categorías
+var _sortActual = "novedad";
+
+function toggleSortMenu() {
+  var m = document.getElementById("sortMenu");
+  if (m) m.classList.toggle("open");
+  // Cerrar cat menu si está abierto
+  var cm = document.getElementById("catDropdownMenu");
+  if (cm) cm.classList.remove("open");
+}
+
+function ordenarPor(tipo, el) {
+  _sortActual = tipo;
+  document.querySelectorAll(".sort-item").forEach(function(i){ i.classList.remove("active"); });
+  if (el) el.classList.add("active");
+  document.getElementById("sortMenu").classList.remove("open");
+  filtrar();
+}
+
+// Cerrar sort menu al hacer click fuera
+document.addEventListener("click", function(e) {
+  var sd = document.getElementById("sortDropdown");
+  if (sd && !sd.contains(e.target)) {
+    var m = document.getElementById("sortMenu");
+    if (m) m.classList.remove("open");
+  }
+});
+
 function toggleCatMenu() {
   const btn  = document.getElementById("catDropdownBtn");
   const menu = document.getElementById("catDropdownMenu");
