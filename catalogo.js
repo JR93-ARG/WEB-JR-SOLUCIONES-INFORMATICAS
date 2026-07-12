@@ -661,12 +661,46 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       metodo_pago:esMP?"Mercado Pago":"Transferencia",
       costo_envio:costoEnvio, estado:"Pendiente verificacion"
     }));
-    registrarEnSheets(filas).catch(e=>console.error("Sheets:",e));
+    registrarEnSheets(filas).then(function(nroPedido) {
+      var linkTracking = nroPedido
+        ? "https://www.jrshop.com.ar/seguimiento.html?pedido=" + nroPedido
+        : null;
+      var subHTML = esMP
+        ? "Tu pedido fue registrado.<br>Total a pagar: <strong>" + fmt(totalFinal) + "</strong>"
+        : "Tu pedido fue registrado.<br>Total a transferir: <strong>" + fmt(totalFinal) + "</strong>";
+      document.getElementById("confirmSub").innerHTML = subHTML;
 
-    const confirmSub = esMP
-      ? 'Tu pedido fue registrado.<br>Total a pagar: <strong>' + fmt(totalFinal) + '</strong>'
-      : 'Tu pedido fue registrado.<br>Total a transferir: <strong>' + fmt(totalFinal) + '</strong>';
-    document.getElementById("confirmSub").innerHTML = confirmSub;
+      if (linkTracking) {
+        var linkEl = document.getElementById("confirmTracking");
+        if (linkEl) {
+          linkEl.style.display = "";
+          linkEl.querySelector(".tracking-nro").textContent = nroPedido;
+          linkEl.querySelector(".tracking-link").href = linkTracking;
+          linkEl.querySelector(".tracking-link").textContent = linkTracking;
+          linkEl.querySelector(".tracking-copy").onclick = function() {
+            navigator.clipboard.writeText(linkTracking).then(function(){
+              linkEl.querySelector(".tracking-copy").textContent = "Copiado!";
+              setTimeout(function(){ linkEl.querySelector(".tracking-copy").textContent = "Copiar link"; }, 2000);
+            });
+          };
+          linkEl.querySelector(".tracking-wa").onclick = function() {
+            var msgWA = encodeURIComponent(
+              "Hola " + nombre.split(" ")[0] + "! Tu pedido " + nroPedido + " fue registrado en JR Soluciones Informaticas.
+
+" +
+              "Segui el estado de tu compra en:
+" + linkTracking + "
+
+" +
+              "Total: " + fmt(totalFinal) + "
+" +
+              "Nos contactaremos para coordinar pago y entrega."
+            );
+            window.open("https://wa.me/" + tel.replace(/\D/g,"") + "?text=" + msgWA, "_blank");
+          };
+        }
+      }
+    }).catch(function(e){ console.error("Sheets:", e); });
     irAStep(5);
   } catch(err) {
     console.error("Error:",err); alert("Hubo un error. Intentá de nuevo.");
@@ -1443,43 +1477,32 @@ async function registrarVisitaPagina() {
     var data = await res.json();
     if (data.ok) actualizarStats(data.total, data.activos);
   } catch(e) {
-    // Fallback: intentar solo leer stats sin registrar visita
-    try {
-      var res2  = await fetch(API_SP + "/stats-pagina");
-      var data2 = await res2.json();
-      if (data2.ok) actualizarStats(data2.total, data2.activos);
-    } catch(e2) {
-      // Si todo falla, ocultar el contador
-      var elV = document.getElementById("statVisitas");
-      if (elV) elV.closest(".stat-item").style.display = "none";
-    }
+    refrescarStatsPagina();
   }
 }
 
 function actualizarStats(total, activos) {
   var elV = document.getElementById("statVisitas");
-  if (elV) elV.textContent = total.toLocaleString("es-AR");
+  var totalNum = Number(total);
+  if (elV && isFinite(totalNum)) elV.textContent = totalNum.toLocaleString("es-AR");
   var elO = document.getElementById("statOnline");
   if (elO) {
-    var base = Math.max(1, activos);
-    var mult = base === 1 ? Math.floor(Math.random()*3)+2
-             : base === 2 ? Math.floor(Math.random()*3)+4
-             : base === 3 ? Math.floor(Math.random()*3)+5
-             : Math.floor(base * 1.8 + Math.random()*3);
-    elO.textContent = mult;
+    var activosNum = Number(activos);
+    if (isFinite(activosNum)) elO.textContent = activosNum.toLocaleString("es-AR");
   }
 }
 
-function pingPeriodico() {
-  var elO = document.getElementById("statOnline");
-  if (elO) {
-    var actual = parseInt(elO.textContent) || 2;
-    elO.textContent = Math.max(1, actual + Math.floor(Math.random()*3)-1);
+async function refrescarStatsPagina() {
+  try {
+    var res = await fetch(API_SP + "/stats-pagina");
+    var data = await res.json();
+    if (data.ok) actualizarStats(data.total, data.activos);
+  } catch(e) {
+    // Mantener el último valor visible si el backend no responde.
   }
-  setTimeout(pingPeriodico, 30000);
 }
 registrarVisitaPagina();
-setTimeout(pingPeriodico, 30000);
+setInterval(refrescarStatsPagina, 15000);
 
 // ── Ultima compra ─────────────────────────────────────────────────────────────
 var PRODUCTOS_MUESTRA = (window.CATALOGO_INDEX || []).filter(function(p){ return p.precio > 0; }).slice(0,50);

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguimiento de pedido — JR Soluciones Informáticas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; background: #f1f5f9; min-height: 100vh; }
+
+  .header {
+    background: #0f2015; color: #fff; padding: 14px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .header img { height: 44px; width: auto; }
+  .header-text h1 { font-size: 16px; font-weight: 700; }
+  .header-text p  { font-size: 12px; color: #86efac; }
+
+  .container { max-width: 560px; margin: 24px auto; padding: 0 16px 40px; }
+
+  .card {
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    padding: 20px; margin-bottom: 16px;
+  }
+
+  .pedido-nro {
+    font-size: 22px; font-weight: 800; color: #0f2015; margin-bottom: 4px;
+  }
+  .pedido-fecha { font-size: 13px; color: #888; }
+
+  /* Timeline de estados */
+  .timeline { margin: 20px 0; }
+  .tl-step {
+    display: flex; gap: 12px; align-items: flex-start;
+    margin-bottom: 16px; position: relative;
+  }
+  .tl-step:not(:last-child)::after {
+    content: ""; position: absolute; left: 17px; top: 36px;
+    width: 2px; height: calc(100% + 4px);
+    background: #e2e8f0;
+  }
+  .tl-step.done::after { background: #16a34a; }
+  .tl-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+    background: #f1f5f9; color: #94a3b8;
+    border: 2px solid #e2e8f0;
+    z-index: 1;
+  }
+  .tl-step.done .tl-icon {
+    background: #dcfce7; color: #16a34a;
+    border-color: #16a34a;
+  }
+  .tl-step.active .tl-icon {
+    background: #dbeafe; color: #2563eb;
+    border-color: #2563eb; animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(37,99,235,.3); }
+    50%      { box-shadow: 0 0 0 6px rgba(37,99,235,.0); }
+  }
+  .tl-content { flex: 1; padding-top: 6px; }
+  .tl-label { font-size: 14px; font-weight: 600; color: #1e293b; }
+  .tl-label.inactive { color: #94a3b8; font-weight: 400; }
+  .tl-desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+  /* Datos del pedido */
+  .data-row {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+  }
+  .data-row:last-child { border-bottom: none; }
+  .data-label { color: #888; }
+  .data-val   { font-weight: 600; color: #1e293b; text-align: right; max-width: 60%; }
+
+  /* Productos */
+  .prod-item {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid #f8faff;
+    font-size: 13px;
+  }
+  .prod-item:last-child { border-bottom: none; }
+  .prod-nombre { color: #1e293b; flex: 1; padding-right: 8px; }
+  .prod-sub    { color: #16a34a; font-weight: 700; white-space: nowrap; }
+
+  .total-row {
+    display: flex; justify-content: space-between;
+    padding: 12px 0 0; margin-top: 8px;
+    border-top: 2px solid #f1f5f9;
+    font-size: 16px; font-weight: 800;
+  }
+  .total-val { color: #16a34a; }
+
+  .badge-estado {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 700;
+  }
+
+  .loading { text-align: center; padding: 60px 20px; color: #888; }
+  .error-box {
+    background: #fef2f2; border: 1px solid #fecaca;
+    border-radius: 12px; padding: 20px; text-align: center; color: #dc2626;
+  }
+
+  .wa-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: #25D366; color: #fff; border: none; border-radius: 10px;
+    padding: 12px 20px; font-size: 14px; font-weight: 600;
+    cursor: pointer; width: 100%; margin-top: 8px; text-decoration: none;
+  }
+
+  .refresh-btn {
+    background: #f1f5f9; color: #64748b; border: none; border-radius: 8px;
+    padding: 8px 14px; font-size: 12px; cursor: pointer; margin-top: 8px;
+  }
+  .refresh-btn:hover { background: #e2e8f0; }
+
+  .footer { text-align: center; font-size: 11px; color: #aaa; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-text">
+    <h1>JR Soluciones Informáticas</h1>
+    <p>Seguimiento de tu pedido</p>
+  </div>
+</div>
+
+<div class="container">
+  <div id="app"><div class="loading">⏳ Cargando estado del pedido...</div></div>
+  <div class="footer">
+    JR Soluciones Informáticas · Tucumán, Argentina · <a href="https://www.jrshop.com.ar" style="color:#aaa">jrshop.com.ar</a>
+  </div>
+</div>
+
+<script>
+const API = "https://jrrailway-production.up.railway.app";
+
+const ESTADOS = [
+  { key: "Pendiente verificacion", icon: "📋", label: "Pedido recibido",       desc: "Registramos tu pedido correctamente" },
+  { key: "Pago verificado",        icon: "✅", label: "Pago verificado",        desc: "Tu pago fue confirmado" },
+  { key: "En preparacion",         icon: "📦", label: "En preparación",         desc: "Estamos preparando tu pedido" },
+  { key: "Enviado",                icon: "🚚", label: "Enviado / En camino",    desc: "Tu pedido está en camino" },
+  { key: "Entregado",              icon: "🏠", label: "Entregado",              desc: "¡Tu pedido fue entregado!" },
+];
+
+const COLORES_BADGE = {
+  "Pendiente verificacion": { bg: "#fef9c3", color: "#854d0e" },
+  "Pago verificado":        { bg: "#dcfce7", color: "#166534" },
+  "En preparacion":         { bg: "#dbeafe", color: "#1e3a8a" },
+  "Enviado":                { bg: "#e0f2fe", color: "#0c4a6e" },
+  "Entregado":              { bg: "#dcfce7", color: "#166534" },
+  "Cancelado":              { bg: "#fee2e2", color: "#991b1b" },
+};
+
+function fmt(v) {
+  return "$ " + Math.round(parseFloat(v)||0).toLocaleString("es-AR");
+}
+
+function renderPedido(data) {
+  const estadoIdx = ESTADOS.findIndex(e => e.key === data.estado);
+  const badge = COLORES_BADGE[data.estado] || { bg:"#f1f5f9", color:"#64748b" };
+
+  // Timeline
+  const tlHTML = ESTADOS.map((e, i) => {
+    const done   = i < estadoIdx;
+    const active = i === estadoIdx;
+    const cls    = done ? "done" : active ? "active" : "";
+    return `<div class="tl-step ${cls}">
+      <div class="tl-icon">${e.icon}</div>
+      <div class="tl-content">
+        <div class="tl-label ${!done && !active ? "inactive" : ""}">${e.label}</div>
+        ${active ? `<div class="tl-desc">${e.desc}</div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+
+  // Productos
+  const prodsHTML = (data.items || []).map(p => `
+    <div class="prod-item">
+      <span class="prod-nombre">${p.producto} <span style="color:#aaa">×${p.cantidad||1}</span></span>
+      <span class="prod-sub">${fmt(p.subtotal)}</span>
+    </div>`).join("") || `<div class="prod-item"><span class="prod-nombre">${data.producto || "Productos varios"}</span></div>`;
+
+  const waLink = data.telefono
+    ? `https://wa.me/543812235528?text=${encodeURIComponent("Hola! Consulto por mi pedido " + data.nro + ".")}`
+    : "https://wa.me/543812235528";
+
+  document.getElementById("app").innerHTML = `
+    <div class="card">
+      <div class="pedido-nro">Pedido ${data.nro}</div>
+      <div class="pedido-fecha">${data.fecha || ""} ${data.hora || ""}</div>
+      <span class="badge-estado" style="background:${badge.bg};color:${badge.color};margin-top:8px;display:inline-block">
+        ${data.estado}
+      </span>
+    </div>
+
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:12px">Estado del pedido</div>
+      <div class="timeline">${tlHTML}</div>
+      <button class="refresh-btn" onclick="cargar()">🔄 Actualizar estado</button>
+    </div>
+
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:12px">Datos de entrega</div>
+      <div class="data-row"><span class="data-label">Cliente</span><span class="data-val">${data.cliente||"—"}</span></div>
+      <div class="data-row"><span class="data-label">Entrega</span><span class="data-val">${data.direccion||"Retiro en local"}</span></div>
+      ${data.notas ? `<div class="data-row"><span class="data-label">Notas</span><span class="data-val">${data.notas}</span></div>` : ""}
+    </div>
+
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:12px">Productos</div>
+      ${prodsHTML}
+      <div class="total-row">
+        <span>Total</span>
+        <span class="total-val">${fmt(data.total)}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:8px">¿Tenés alguna consulta?</div>
+      <a class="wa-btn" href="${waLink}" target="_blank">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Consultar por WhatsApp
+      </a>
+    </div>
+  `;
+}
+
+async function cargar() {
+  const params = new URLSearchParams(window.location.search);
+  const nro    = params.get("pedido");
+  if (!nro) {
+    document.getElementById("app").innerHTML = `
+      <div class="error-box">
+        <div style="font-size:24px;margin-bottom:8px">❌</div>
+        <div style="font-weight:700;margin-bottom:6px">Link inválido</div>
+        <div style="font-size:13px">No se especificó un número de pedido.<br>Revisá el link que recibiste.</div>
+      </div>`;
+    return;
+  }
+  document.getElementById("app").innerHTML = `<div class="loading">⏳ Cargando pedido ${nro}...</div>`;
+  try {
+    const res  = await fetch(`${API}/pedido-publico/${nro}`);
+    const data = await res.json();
+    if (!data.ok || !data.pedido) throw new Error(data.error || "No encontrado");
+    renderPedido(data.pedido);
+  } catch(e) {
+    document.getElementById("app").innerHTML = `
+      <div class="error-box">
+        <div style="font-size:24px;margin-bottom:8px">❌</div>
+        <div style="font-weight:700;margin-bottom:6px">Pedido no encontrado</div>
+        <div style="font-size:13px">No encontramos el pedido <strong>${nro}</strong>.<br>Verificá el número e intentá de nuevo.</div>
+      </div>`;
+  }
+}
+
+cargar();
+</script>
+</body>
+</html>
