@@ -20,6 +20,25 @@ let kmDetectado = null;
 
 function saveCart() { sessionStorage.setItem("jrCart", JSON.stringify(cart)); renderCart(); }
 
+function comprarAhora(btn) {
+  // Agregar al carrito y abrir checkout directamente
+  addToCartFromBtn(btn);
+  // Pequeño delay para que se agregue y luego abre el checkout
+  setTimeout(function() {
+    var cartPanel = document.getElementById("cartPanel");
+    var cartFab   = document.getElementById("cartFab");
+    if (cartPanel) cartPanel.classList.add("open");
+    if (cartFab)   cartFab.style.display = "";
+    // Scroll al carrito
+    if (cartPanel) cartPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Ir directo al paso 1 del checkout
+    setTimeout(function() {
+      var btnCheckout = document.getElementById("btnCheckout");
+      if (btnCheckout) btnCheckout.click();
+    }, 400);
+  }, 150);
+}
+
 function addToCartFromBtn(btn) {
   const { id, name, price, href, fuente } = btn.dataset;
   const precioBase = parseFloat(btn.dataset.precioBase || 0);
@@ -661,12 +680,46 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       metodo_pago:esMP?"Mercado Pago":"Transferencia",
       costo_envio:costoEnvio, estado:"Pendiente verificacion"
     }));
-    registrarEnSheets(filas).catch(e=>console.error("Sheets:",e));
+    registrarEnSheets(filas).then(function(nroPedido) {
+      var linkTracking = nroPedido
+        ? "https://www.jrshop.com.ar/seguimiento.html?pedido=" + nroPedido
+        : null;
+      var subHTML = esMP
+        ? "Tu pedido fue registrado.<br>Total a pagar: <strong>" + fmt(totalFinal) + "</strong>"
+        : "Tu pedido fue registrado.<br>Total a transferir: <strong>" + fmt(totalFinal) + "</strong>";
+      document.getElementById("confirmSub").innerHTML = subHTML;
 
-    const confirmSub = esMP
-      ? 'Tu pedido fue registrado.<br>Total a pagar: <strong>' + fmt(totalFinal) + '</strong>'
-      : 'Tu pedido fue registrado.<br>Total a transferir: <strong>' + fmt(totalFinal) + '</strong>';
-    document.getElementById("confirmSub").innerHTML = confirmSub;
+      if (linkTracking) {
+        var linkEl = document.getElementById("confirmTracking");
+        if (linkEl) {
+          linkEl.style.display = "";
+          linkEl.querySelector(".tracking-nro").textContent = nroPedido;
+          linkEl.querySelector(".tracking-link").href = linkTracking;
+          linkEl.querySelector(".tracking-link").textContent = linkTracking;
+          linkEl.querySelector(".tracking-copy").onclick = function() {
+            navigator.clipboard.writeText(linkTracking).then(function(){
+              linkEl.querySelector(".tracking-copy").textContent = "Copiado!";
+              setTimeout(function(){ linkEl.querySelector(".tracking-copy").textContent = "Copiar link"; }, 2000);
+            });
+          };
+          linkEl.querySelector(".tracking-wa").onclick = function() {
+            var msgWA = encodeURIComponent(
+              "Hola " + nombre.split(" ")[0] + "! Tu pedido " + nroPedido + " fue registrado en JR Soluciones Informaticas.
+
+" +
+              "Segui el estado de tu compra en:
+" + linkTracking + "
+
+" +
+              "Total: " + fmt(totalFinal) + "
+" +
+              "Nos contactaremos para coordinar pago y entrega."
+            );
+            window.open("https://wa.me/" + tel.replace(/\D/g,"") + "?text=" + msgWA, "_blank");
+          };
+        }
+      }
+    }).catch(function(e){ console.error("Sheets:", e); });
     irAStep(5);
   } catch(err) {
     console.error("Error:",err); alert("Hubo un error. Intentá de nuevo.");
@@ -727,7 +780,6 @@ const searchInput = document.getElementById("buscarMobile")
 const noResults = document.getElementById("noResults");
 const allSections = Array.from(document.querySelectorAll("[data-section]"));
 let catActiva     = "Todos";
-let _sortActual   = "novedad";
 
 function filtrarPorTermino(termino) {
   catActiva = "Todos";
@@ -748,7 +800,7 @@ function filtrar() {
   const allSec = Array.from(document.querySelectorAll("[data-section]"));
   const esTodos = catActiva === "Todos" && !q;
 
-  // Novedades, destacados y mundial solo visibles en vista principal
+  // Novedades y destacados solo visibles en vista principal
   if (secNovedades)  secNovedades.style.display  = esTodos ? "" : "none";
   if (secDestacados) secDestacados.style.display  = esTodos ? "" : "none";
 
@@ -765,23 +817,24 @@ function filtrar() {
   if (secRecientes) secRecientes.style.display = "none";
   let visible = 0;
 
+  // Función para ordenar las cards dentro de un grid
   function sortGrid(grid) {
     const cards = Array.from(grid.querySelectorAll(".card:not(.hidden)"));
     if (_sortActual === "novedad" || cards.length < 2) return;
     cards.sort(function(a, b) {
       const getPrice = function(c) {
         const txt = c.querySelector(".card-price")?.textContent || "0";
-        return parseFloat(txt.replace(/[^0-9.]/g, "")) || 0;
+        return parseFloat(txt.replace(/[^0-9.]/g,"")) || 0;
       };
       const getNombre = function(c) {
         return c.querySelector(".card-name")?.textContent || "";
       };
-      if (_sortActual === "precio-asc") return getPrice(a) - getPrice(b);
+      if (_sortActual === "precio-asc")  return getPrice(a) - getPrice(b);
       if (_sortActual === "precio-desc") return getPrice(b) - getPrice(a);
-      if (_sortActual === "nombre") return getNombre(a).localeCompare(getNombre(b));
+      if (_sortActual === "nombre")      return getNombre(a).localeCompare(getNombre(b));
       return 0;
     });
-    cards.forEach(function(c) { grid.appendChild(c); });
+    cards.forEach(function(c){ grid.appendChild(c); });
   }
 
   allSec.forEach(sec => {
@@ -797,8 +850,8 @@ function filtrar() {
       card.classList.toggle("hidden", !show);
       if (show) { visible++; n++; }
     });
-    if (n === 0) sec.style.display = "none";
-    else sortGrid(sec.querySelector(".grid"));
+    if (n === 0) { sec.style.display = "none"; return; }
+    sortGrid(sec.querySelector(".grid"));
   });
 
   if ((q || _sortActual !== "novedad") && catActiva === "Todos" && secRecientes) {
@@ -807,7 +860,7 @@ function filtrar() {
     let n = 0;
     cards.forEach(card => {
       const name = card.querySelector(".card-name")?.textContent.toLowerCase() || "";
-      const show = name.includes(q);
+      const show = !q || name.includes(q);
       card.classList.toggle("hidden", !show);
       if (show) { visible++; n++; }
     });
@@ -824,9 +877,13 @@ function getQuery() {
   return (document.getElementById("buscarDesktop") || document.getElementById("buscarMobile"))?.value.toLowerCase().trim() || "";
 }
 
+// Dropdown de categorías
+var _sortActual = "novedad";
+
 function toggleSortMenu() {
   var m = document.getElementById("sortMenu");
   if (m) m.classList.toggle("open");
+  // Cerrar cat menu si está abierto
   var cm = document.getElementById("catDropdownMenu");
   if (cm) cm.classList.remove("open");
 }
@@ -835,10 +892,11 @@ function ordenarPor(tipo, el) {
   _sortActual = tipo;
   document.querySelectorAll(".sort-item").forEach(function(i){ i.classList.remove("active"); });
   if (el) el.classList.add("active");
-  document.getElementById("sortMenu")?.classList.remove("open");
+  document.getElementById("sortMenu").classList.remove("open");
   filtrar();
 }
 
+// Cerrar sort menu al hacer click fuera
 document.addEventListener("click", function(e) {
   var sd = document.getElementById("sortDropdown");
   if (sd && !sd.contains(e.target)) {
@@ -847,7 +905,6 @@ document.addEventListener("click", function(e) {
   }
 });
 
-// Dropdown de categorías
 function toggleCatMenu() {
   const btn  = document.getElementById("catDropdownBtn");
   const menu = document.getElementById("catDropdownMenu");

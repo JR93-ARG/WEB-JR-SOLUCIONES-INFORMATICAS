@@ -96,29 +96,6 @@ header {
 .cat-dropdown-item:hover, .cat-dropdown-item.active { background: #2a2a2a; color: #f59e0b; }
 .cat-dropdown-item .cat-icon { font-size: 16px; width: 22px; text-align: center; }
 
-/* Sort dropdown */
-.sort-dropdown { position: relative; }
-.sort-btn {
-  background: #1a1a1a; color: #ccc; border: 1px solid #333;
-  border-radius: 8px; padding: 7px 12px; font-size: 13px;
-  cursor: pointer; display: flex; align-items: center; gap: 5px;
-  white-space: nowrap;
-}
-.sort-btn:hover { background: #222; color: #fff; }
-.sort-menu {
-  display: none; position: absolute; top: calc(100% + 6px); left: 0;
-  background: #1a1a1a; border: 1px solid #333; border-radius: 10px;
-  min-width: 170px; z-index: 200; overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0,0,0,.4);
-}
-.sort-menu.open { display: block; }
-.sort-item {
-  padding: 10px 14px; font-size: 13px; color: #ccc; cursor: pointer;
-  transition: background .12s;
-}
-.sort-item:hover { background: #2a2a2a; color: #fff; }
-.sort-item.active { color: #f59e0b; font-weight: 600; }
-
 /* Búsqueda mobile (oculta en desktop) */
 .search-mobile { flex: 1; display: block; }
 @media (min-width: 768px) { .search-mobile { display: none; } }
@@ -196,14 +173,47 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 100px; }
 .card-price-mp s { text-decoration: line-through; color: #ccc; }
 .card-price { font-size: 17px; font-weight: 800; color: #16a34a; }
 .card-price-label { font-size: 10px; color: #16a34a; font-weight: 600; margin-top: -4px; }
-.card-badge-desc { display:inline-block; font-size:10px; font-weight:700; color:#166534; background:#dcfce7; border-radius:4px; padding:2px 6px; margin:2px 0 6px; }
-.badge-mundial { position:absolute; top:6px; left:6px; background:#F7B731; color:#5A3A00; font-size:9px; font-weight:800; padding:2px 7px; border-radius:4px; z-index:2; }
-.add-btn {
-  flex: 1; background: #111; color: #fff; border: none;
-  padding: 8px 6px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
-  transition: background .15s;
+.card-badge-desc { display:inline-block; font-size:10px; font-weight:700; color:#166534; background:#dcfce7; border-radius:4px; padding:2px 6px; margin:2px 0 3px; }
+.card-cuotas { display:block; font-size:10px; color:#1e40af; font-weight:600; margin:1px 0; }
+.card-cuotas::before { content:"💳 "; }
+.card-unidades { display:block; font-size:10px; color:#dc2626; font-weight:700; margin:1px 0; }
+
+/* ── Sort dropdown ── */
+.sort-dropdown { position: relative; }
+.sort-btn {
+  background: #1a1a1a; color: #ccc; border: 1px solid #333;
+  border-radius: 8px; padding: 7px 12px; font-size: 13px;
+  cursor: pointer; display: flex; align-items: center; gap: 5px;
+  white-space: nowrap;
 }
-.add-btn:hover { background: #333; }
+.sort-btn:hover { background: #222; color: #fff; }
+.sort-menu {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  background: #1a1a1a; border: 1px solid #333; border-radius: 10px;
+  min-width: 170px; z-index: 200; overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.sort-menu.open { display: block; }
+.sort-item {
+  padding: 10px 14px; font-size: 13px; color: #ccc; cursor: pointer;
+  transition: background .12s;
+}
+.sort-item:hover { background: #2a2a2a; color: #fff; }
+.sort-item.active { color: #f59e0b; font-weight: 600; }
+.badge-mundial { position:absolute; top:6px; left:6px; background:#F7B731; color:#5A3A00; font-size:9px; font-weight:800; padding:2px 7px; border-radius:4px; z-index:2; }
+.buy-btn {
+  flex: 1; background: #111; color: #fff; border: none;
+  padding: 9px 10px; border-radius: 10px; cursor: pointer;
+  font-size: 13px; font-weight: 700; transition: background .15s;
+}
+.buy-btn:hover { background: #16a34a; }
+.add-btn {
+  background: #f3f4f6; color: #555; border: none;
+  padding: 9px 11px; border-radius: 10px; cursor: pointer;
+  font-size: 13px; transition: background .15s; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.add-btn:hover { background: #e5e7eb; color: #111; }
 
 /* ── Navegación por categorías ── */
 .cat-nav {
