@@ -17,21 +17,48 @@ let cart        = JSON.parse(sessionStorage.getItem("jrCart") || "[]");
 let zonaActual  = null;
 let costoEnvio  = 0;
 let kmDetectado = null;
+let compraDirectaActiva = false;
+let carritoAnteriorCompraDirecta = [];
+let pedidoConfirmado = false;
 
 function saveCart() { sessionStorage.setItem("jrCart", JSON.stringify(cart)); renderCart(); }
 
 function comprarAhora(btn) {
-  addToCartFromBtn(btn);
+  carritoAnteriorCompraDirecta = cart.map(function(item) {
+    return Object.assign({}, item);
+  });
 
-  setTimeout(function() {
-    var panel = document.getElementById("cartPanel");
+  compraDirectaActiva = true;
+  pedidoConfirmado = false;
 
-    if (panel) {
-      panel.style.display = "none";
-    }
+  const id = btn.dataset.id;
+  const name = btn.dataset.name;
+  const price = Number(btn.dataset.price) || 0;
+  const href = btn.dataset.href;
+  const fuente = btn.dataset.fuente || "";
+  const precioBase = Number(btn.dataset.precioBase) || 0;
+  const key = id + "|" + href;
 
-    abrirCheckout();
-  }, 150);
+  cart = [{
+    key: key,
+    id: id,
+    name: name,
+    price: price,
+    href: href,
+    fuente: fuente,
+    precioBase: precioBase,
+    qty: 1
+  }];
+
+  saveCart();
+
+  const panel = document.getElementById("cartPanel");
+
+  if (panel) {
+    panel.style.display = "none";
+  }
+
+  abrirCheckout();
 }
 
 function addToCartFromBtn(btn) {
@@ -97,6 +124,53 @@ function limpiarTextoCliente(str) {
 }
 
 function fmt(v) { return "$ " + Math.round(v).toLocaleString("es-AR"); }
+
+function obtenerPrecioUnitario(item) {
+  return Number(
+    item.precio_unitario ??
+    item.precio_unit ??
+    item.precio ??
+    0
+  ) || 0;
+}
+
+function obtenerSubtotalItem(item) {
+  const subtotalGuardado = Number(
+    item.subtotal ??
+    item.total_item ??
+    0
+  ) || 0;
+
+  if (subtotalGuardado > 0) {
+    return subtotalGuardado;
+  }
+
+  const precio = obtenerPrecioUnitario(item);
+  const cantidad = Number(item.cantidad) || 1;
+
+  return precio * cantidad;
+}
+
+function obtenerTotalPedido(data) {
+  const totalGuardado = Number(
+    data.total ??
+    data.monto_total ??
+    data.total_pedido ??
+    0
+  ) || 0;
+
+  if (totalGuardado > 0) {
+    return totalGuardado;
+  }
+
+  const subtotalProductos = (data.items || []).reduce(function(acumulado, item) {
+    return acumulado + obtenerSubtotalItem(item);
+  }, 0);
+
+  const costoEnvio = Number(data.costo_envio || 0) || 0;
+
+  return subtotalProductos + costoEnvio;
+}
 
 function renderCart() {
   document.getElementById("cartCount").textContent = cart.reduce((s,i)=>s+i.qty,0);
@@ -182,7 +256,16 @@ document.getElementById("btnShareCart").addEventListener("click", () => {
 });
 
 document.getElementById("btnCheckout").addEventListener("click", () => {
-  if (!cart.length) { alert("El carrito está vacío"); return; }
+  if (!cart.length) {
+    alert("El carrito está vacío");
+    return;
+  }
+
+  // Este proceso viene desde el carrito normal.
+  compraDirectaActiva = false;
+  carritoAnteriorCompraDirecta = null;
+  pedidoConfirmado = false;
+
   document.getElementById("cartPanel").style.display = "none";
   abrirCheckout();
 });
@@ -354,6 +437,17 @@ document.getElementById("btnIgnorarDAZ").addEventListener("click", () => irAStep
 
 function cerrarCheckout() {
   document.getElementById("checkoutModal").classList.remove("open");
+
+  if (compraDirectaActiva && !pedidoConfirmado) {
+    cart = carritoAnteriorCompraDirecta.map(function(item) {
+      return Object.assign({}, item);
+    });
+
+    saveCart();
+  }
+
+  compraDirectaActiva = false;
+  carritoAnteriorCompraDirecta = [];
 }
 
 function irAStep(n) {
@@ -736,6 +830,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
         }
       }
     }).catch(function(e){ console.error("Sheets:", e); });
+    pedidoConfirmado = true;
     irAStep(5);
   } catch(err) {
     console.error("Error:",err); alert("Hubo un error. Intentá de nuevo.");
@@ -749,23 +844,89 @@ const API_TOKEN = "jrsoluciones2025";
 
 async function registrarEnSheets(filas) {
   try {
-    const res = await fetch(API_URL, {
-      method:"POST",
-      headers:{"Content-Type":"application/json","X-API-Token":API_TOKEN},
-      body:JSON.stringify({
-        cliente:filas[0].cliente, dni:filas[0].dni, telefono:filas[0].telefono,
-        direccion:filas[0].direccion, notas:filas[0].notas, total:filas[0].total,
-        items:filas.map(f=>({producto:f.producto,proveedor:f.proveedor,cantidad:f.cantidad,precio_unit:f.precio_unit,subtotal:f.subtotal}))
+    if (!Array.isArray(filas) || filas.length === 0) {
+      console.error("No hay datos para registrar");
+      return false;
+    }
+
+    const totalPedido = Number(filas[0].total) || 0;
+    const costoEnvioPedido = Number(filas[0].costo_envio) || 0;
+
+    const payload = {
+      cliente: filas[0].cliente,
+      dni: filas[0].dni,
+      telefono: filas[0].telefono,
+      direccion: filas[0].direccion,
+      notas: filas[0].notas,
+
+      total: totalPedido,
+      monto_total: totalPedido,
+      total_pedido: totalPedido,
+
+      costo_envio: costoEnvioPedido,
+      metodo_pago: filas[0].metodo_pago || "",
+
+      items: filas.map(function(f) {
+        const precio = Number(f.precio_unit) || 0;
+        const cantidad = Number(f.cantidad) || 1;
+        const subtotalItem = Number(f.subtotal) || precio * cantidad;
+
+        return {
+          producto: f.producto,
+          proveedor: f.proveedor,
+          cantidad: cantidad,
+
+          precio_unit: precio,
+          precio_unitario: precio,
+          precio: precio,
+
+          subtotal: subtotalItem,
+          total_item: subtotalItem
+        };
       })
+    };
+
+    console.log("Pedido enviado:", payload);
+
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Token": API_TOKEN
+      },
+      body: JSON.stringify(payload)
     });
+
     const data = await res.json();
-    if (!data.ok) console.error("API rechazó:",JSON.stringify(data));
-    return data.ok ? data.nroPedido : false;
-  } catch(e) { console.error("Error API:",e); return false; }
+
+    console.log("Respuesta del servidor:", data);
+
+    if (!data.ok) {
+      console.error("API rechazó:", JSON.stringify(data));
+      return false;
+    }
+
+    return data.nroPedido || false;
+
+  } catch (e) {
+    console.error("Error API:", e);
+    return false;
+  }
 }
 
+
+
 document.getElementById("btnConfirmClose").addEventListener("click", () => {
-  cerrarCheckout(); cart=[]; saveCart();
+  pedidoConfirmado = true;
+
+  document.getElementById("checkoutModal").classList.remove("open");
+
+  cart = [];
+  saveCart();
+
+  compraDirectaActiva = false;
+  carritoAnteriorCompraDirecta = null;
+  pedidoConfirmado = false;
 });
 document.getElementById("checkoutModal").addEventListener("click", e => {
   if (e.target===document.getElementById("checkoutModal")) cerrarCheckout();
