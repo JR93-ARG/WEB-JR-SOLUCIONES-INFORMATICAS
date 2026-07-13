@@ -180,24 +180,11 @@ function renderPedido(data) {
   }).join("");
 
   // Productos
-  const prodsHTML = (data.items || []).map(function(p) {
-  const cantidad = Number(p.cantidad) || 1;
-  const subtotalItem = obtenerSubtotalItem(p);
-
-  return `
+  const prodsHTML = (data.items || []).map(p => `
     <div class="prod-item">
-      <span class="prod-nombre">
-        ${p.producto}
-        <span style="color:#aaa">×${cantidad}</span>
-      </span>
-      <span class="prod-sub">${fmt(subtotalItem)}</span>
-    </div>`;
-}).join("") || `
-  <div class="prod-item">
-    <span class="prod-nombre">${data.producto || "Productos varios"}</span>
-  </div>`;
-
-  const totalPedido = obtenerTotalPedido(data);
+      <span class="prod-nombre">${p.producto} <span style="color:#aaa">×${p.cantidad||1}</span></span>
+      <span class="prod-sub">${fmt(p.subtotal)}</span>
+    </div>`).join("") || `<div class="prod-item"><span class="prod-nombre">${data.producto || "Productos varios"}</span></div>`;
 
   const waLink = data.telefono
     ? `https://wa.me/543812235528?text=${encodeURIComponent("Hola! Consulto por mi pedido " + data.nro + ".")}`
@@ -230,7 +217,7 @@ function renderPedido(data) {
       ${prodsHTML}
       <div class="total-row">
         <span>Total</span>
-        <span class="total-val">${fmt(totalPedido)}</span>
+        <span class="total-val">${fmt(data.total)}</span>
       </div>
     </div>
 
