@@ -20,25 +20,6 @@ let kmDetectado = null;
 
 function saveCart() { sessionStorage.setItem("jrCart", JSON.stringify(cart)); renderCart(); }
 
-function comprarAhora(btn) {
-  // Agregar al carrito y abrir checkout directamente
-  addToCartFromBtn(btn);
-  // Pequeño delay para que se agregue y luego abre el checkout
-  setTimeout(function() {
-    var cartPanel = document.getElementById("cartPanel");
-    var cartFab   = document.getElementById("cartFab");
-    if (cartPanel) cartPanel.classList.add("open");
-    if (cartFab)   cartFab.style.display = "";
-    // Scroll al carrito
-    if (cartPanel) cartPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-    // Ir directo al paso 1 del checkout
-    setTimeout(function() {
-      var btnCheckout = document.getElementById("btnCheckout");
-      if (btnCheckout) btnCheckout.click();
-    }, 400);
-  }, 150);
-}
-
 function addToCartFromBtn(btn) {
   const { id, name, price, href, fuente } = btn.dataset;
   const precioBase = parseFloat(btn.dataset.precioBase || 0);
@@ -704,18 +685,12 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
           };
           linkEl.querySelector(".tracking-wa").onclick = function() {
             var msgWA = encodeURIComponent(
-              "Hola " + nombre.split(" ")[0] + "! Tu pedido " + nroPedido + " fue registrado en JR Soluciones Informaticas.
-
-" +
-              "Segui el estado de tu compra en:
-" + linkTracking + "
-
-" +
-              "Total: " + fmt(totalFinal) + "
-" +
-              "Nos contactaremos para coordinar pago y entrega."
-            );
-            window.open("https://wa.me/" + tel.replace(/\D/g,"") + "?text=" + msgWA, "_blank");
+            "Hola " + nombre.split(" ")[0] + "! Tu pedido " + nroPedido + " fue registrado en JR Soluciones Informaticas.\n\n" +
+            "Segui el estado de tu compra en:\n" + linkTracking + "\n\n" +
+            "Total: " + fmt(totalFinal) + "\n" +
+            "Nos contactaremos para coordinar pago y entrega."
+          );
+          window.open("https://wa.me/" + tel.replace(/\D/g,"") + "?text=" + msgWA, "_blank");
           };
         }
       }
@@ -1496,32 +1471,43 @@ async function registrarVisitaPagina() {
     var data = await res.json();
     if (data.ok) actualizarStats(data.total, data.activos);
   } catch(e) {
-    refrescarStatsPagina();
+    // Fallback: intentar solo leer stats sin registrar visita
+    try {
+      var res2  = await fetch(API_SP + "/stats-pagina");
+      var data2 = await res2.json();
+      if (data2.ok) actualizarStats(data2.total, data2.activos);
+    } catch(e2) {
+      // Si todo falla, ocultar el contador
+      var elV = document.getElementById("statVisitas");
+      if (elV) elV.closest(".stat-item").style.display = "none";
+    }
   }
 }
 
 function actualizarStats(total, activos) {
   var elV = document.getElementById("statVisitas");
-  var totalNum = Number(total);
-  if (elV && isFinite(totalNum)) elV.textContent = totalNum.toLocaleString("es-AR");
+  if (elV) elV.textContent = total.toLocaleString("es-AR");
   var elO = document.getElementById("statOnline");
   if (elO) {
-    var activosNum = Number(activos);
-    if (isFinite(activosNum)) elO.textContent = activosNum.toLocaleString("es-AR");
+    var base = Math.max(1, activos);
+    var mult = base === 1 ? Math.floor(Math.random()*3)+2
+             : base === 2 ? Math.floor(Math.random()*3)+4
+             : base === 3 ? Math.floor(Math.random()*3)+5
+             : Math.floor(base * 1.8 + Math.random()*3);
+    elO.textContent = mult;
   }
 }
 
-async function refrescarStatsPagina() {
-  try {
-    var res = await fetch(API_SP + "/stats-pagina");
-    var data = await res.json();
-    if (data.ok) actualizarStats(data.total, data.activos);
-  } catch(e) {
-    // Mantener el último valor visible si el backend no responde.
+function pingPeriodico() {
+  var elO = document.getElementById("statOnline");
+  if (elO) {
+    var actual = parseInt(elO.textContent) || 2;
+    elO.textContent = Math.max(1, actual + Math.floor(Math.random()*3)-1);
   }
+  setTimeout(pingPeriodico, 30000);
 }
 registrarVisitaPagina();
-setInterval(refrescarStatsPagina, 15000);
+setTimeout(pingPeriodico, 30000);
 
 // ── Ultima compra ─────────────────────────────────────────────────────────────
 var PRODUCTOS_MUESTRA = (window.CATALOGO_INDEX || []).filter(function(p){ return p.precio > 0; }).slice(0,50);
