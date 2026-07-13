@@ -20,18 +20,59 @@ let kmDetectado = null;
 
 function saveCart() { sessionStorage.setItem("jrCart", JSON.stringify(cart)); renderCart(); }
 
+function comprarAhora(btn) {
+  addToCartFromBtn(btn);
+
+  setTimeout(function() {
+    var panel = document.getElementById("cartPanel");
+
+    if (panel) {
+      panel.style.display = "none";
+    }
+
+    abrirCheckout();
+  }, 150);
+}
+
 function addToCartFromBtn(btn) {
   const { id, name, price, href, fuente } = btn.dataset;
   const precioBase = parseFloat(btn.dataset.precioBase || 0);
   const key = id + "|" + href;
+
   const found = cart.find(i => i.key === key);
-  if (found) found.qty++;
-  else cart.push({ key, id, name, price: parseFloat(price)||0, href, fuente: fuente||"", precioBase, qty:1 });
+
+  if (found) {
+    found.qty++;
+  } else {
+    cart.push({
+      key,
+      id,
+      name,
+      price: parseFloat(price) || 0,
+      href,
+      fuente: fuente || "",
+      precioBase,
+      qty: 1
+    });
+  }
+
   saveCart();
-  btn.textContent = "✓ Agregado";
+
+  const textoOriginal = btn.dataset.textoOriginal || btn.innerHTML;
+  btn.dataset.textoOriginal = textoOriginal;
+
+  btn.innerHTML = "✓";
   btn.style.background = "#16a34a";
-  setTimeout(() => { btn.textContent = "+ Agregar"; btn.style.background = ""; }, 1200);
+  btn.style.color = "#fff";
+
+  setTimeout(function() {
+    btn.innerHTML = textoOriginal;
+    btn.style.background = "";
+    btn.style.color = "";
+  }, 1200);
 }
+
+
 
 function changeQty(key, delta) {
   const it = cart.find(i => i.key === key);
@@ -1220,11 +1261,34 @@ function renderDestacados() {
       + '<p class="card-price">' + fmtMV(precioConDesc) + '</p>'
       + '<span class="card-badge-desc">' + pctInd + '% off con transferencia</span>'
       + '<div class="card-actions" onclick="event.stopPropagation()">'
-      + '<button class="add-btn" onclick="addToCartFromBtn(this)"'
-      + ' data-id="' + p.id + '" data-name="' + p.name + '" data-price="' + precioCatalogo + '"'
-      + ' data-href="' + p.href + '" data-fuente="' + p.fuente + '" data-precio-base="' + p.precioBase + '">'
-      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>Agregar'
-      + '</button></div></div></div>';
+
++ '<button class="buy-btn" onclick="comprarAhora(this)"'
++ ' data-id="' + p.id + '"'
++ ' data-name="' + p.name + '"'
++ ' data-price="' + precioCatalogo + '"'
++ ' data-href="' + p.href + '"'
++ ' data-fuente="' + p.fuente + '"'
++ ' data-precio-base="' + p.precioBase + '">'
++ 'Comprar'
++ '</button>'
+
++ '<button class="add-btn" onclick="addToCartFromBtn(this)"'
++ ' data-id="' + p.id + '"'
++ ' data-name="' + p.name + '"'
++ ' data-price="' + precioCatalogo + '"'
++ ' data-href="' + p.href + '"'
++ ' data-fuente="' + p.fuente + '"'
++ ' data-precio-base="' + p.precioBase + '"'
++ ' title="Agregar al carrito">'
+
++ '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">'
++ '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>'
++ '</svg>'
+
++ '</button>'
++ '</div>'
++ '</div>'
++ '</div>';
   }).join("");
 }
 
