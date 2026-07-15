@@ -161,14 +161,23 @@ function fmt(v) {
   return "$ " + Math.round(parseFloat(v)||0).toLocaleString("es-AR");
 }
 
-function renderPedido(data) {
-  const estadoIdx = ESTADOS.findIndex(e => e.key === data.estado);
-  const badge = COLORES_BADGE[data.estado] || { bg:"#f1f5f9", color:"#64748b" };
+function normalizarEstado(s) {
+  return (s||"").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\s+/g," ").trim();
+}
 
-  // Timeline
+function renderPedido(data) {
+  const estadoNorm = normalizarEstado(data.estado);
+  const estadoIdx  = ESTADOS.findIndex(e => normalizarEstado(e.key) === estadoNorm);
+  const idxMostrar = estadoIdx === -1 ? 0 : estadoIdx;
+  const badge = COLORES_BADGE[data.estado] || COLORES_BADGE[
+    Object.keys(COLORES_BADGE).find(k => normalizarEstado(k) === estadoNorm)
+  ] || { bg:"#f1f5f9", color:"#64748b" };
+
   const tlHTML = ESTADOS.map((e, i) => {
-    const done   = i < estadoIdx;
-    const active = i === estadoIdx;
+    const done   = i < idxMostrar;
+    const active = i === idxMostrar;
     const cls    = done ? "done" : active ? "active" : "";
     return `<div class="tl-step ${cls}">
       <div class="tl-icon">${e.icon}</div>
