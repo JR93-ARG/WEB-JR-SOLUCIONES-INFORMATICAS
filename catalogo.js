@@ -546,41 +546,127 @@ function onProvinciaChange() {
   if (val) mostrarZona(val);
 }
 
+// ── Mapa interactivo (Leaflet) ──────────────────────────────────────────
+var _mapa = null, _marcador = null, _geoTimer = null;
+
+function calcularKm(lat, lng) {
+  var R = 6371;
+  var dLat = (lat-ORIGEN_LAT)*Math.PI/180;
+  var dLng = (lng-ORIGEN_LNG)*Math.PI/180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2)
+        + Math.cos(ORIGEN_LAT*Math.PI/180)*Math.cos(lat*Math.PI/180)
+        * Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function claveZonaPorProvincia(prov, km) {
+  prov = (prov||"").toLowerCase();
+  if (prov.indexOf("tucum") >= 0) return km <= 25 ? "tucuman_capital" : "tucuman_interior";
+  if (["salta","jujuy","catamarca","santiago","la rioja"].some(function(p){return prov.indexOf(p)>=0;})) return "noa";
+  if (["córdoba","cordoba","santa fe","entre ríos","entre rios"].some(function(p){return prov.indexOf(p)>=0;})) return "centro";
+  if (prov.indexOf("buenos") >= 0) return "bsas";
+  return "otro";
+}
+
+function initMapa(lat, lng) {
+  var wrap = document.getElementById("mapaWrap");
+  if (!wrap || typeof L === "undefined") return;
+  wrap.classList.add("visible");
+
+  if (_mapa) {
+    _mapa.setView([lat, lng], 15);
+    _marcador.setLatLng([lat, lng]);
+    setTimeout(function(){ _mapa.invalidateSize(); }, 120);
+    actualizarDesdeMapa(lat, lng);
+    return;
+  }
+
+  _mapa = L.map("mapaUbicacion", { zoomControl: true }).setView([lat, lng], 15);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap"
+  }).addTo(_mapa);
+
+  _marcador = L.marker([lat, lng], { draggable: true }).addTo(_mapa);
+  _marcador.on("dragend", function(e) {
+    var p = e.target.getLatLng();
+    actualizarDesdeMapa(p.lat, p.lng);
+  });
+  _mapa.on("click", function(e) {
+    _marcador.setLatLng(e.latlng);
+    actualizarDesdeMapa(e.latlng.lat, e.latlng.lng);
+  });
+
+  setTimeout(function(){ _mapa.invalidateSize(); }, 200);
+  actualizarDesdeMapa(lat, lng);
+}
+
+function actualizarDesdeMapa(lat, lng) {
+  kmDetectado = calcularKm(lat, lng);
+  var coordsEl = document.getElementById("mapaCoords");
+  if (coordsEl) {
+    coordsEl.classList.add("visible");
+    coordsEl.innerHTML = "📍 A " + kmDetectado.toFixed(1) + " km del local · Buscando dirección...";
+  }
+  clearTimeout(_geoTimer);
+  _geoTimer = setTimeout(function() {
+    fetch("https://nominatim.openstreetmap.org/reverse?lat="+lat+"&lon="+lng+"&format=json&addressdetails=1")
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        var a = d.address || {};
+        var clave = claveZonaPorProvincia(a.state, kmDetectado);
+        mostrarZona(clave);
+        var sel = document.getElementById("selProvincia");
+        if (sel) sel.value = clave;
+
+        // Autocompletar dirección
+        var calle = [a.road, a.house_number].filter(Boolean).join(" ");
+        var ciudad = a.city || a.town || a.village || a.suburb || "";
+        var cp = a.postcode || "";
+        var inpDir = document.getElementById("inpDireccion");
+        var inpCiu = document.getElementById("inpCiudad");
+        var inpCP  = document.getElementById("inpCP");
+        if (inpDir && calle && !inpDir.value.trim()) inpDir.value = calle;
+        if (inpCiu && ciudad) inpCiu.value = ciudad;
+        if (inpCP && cp) inpCP.value = cp;
+
+        if (coordsEl) {
+          var txt = [calle, ciudad].filter(Boolean).join(", ") || "Ubicación seleccionada";
+          coordsEl.innerHTML = "📍 " + txt + " · a " + kmDetectado.toFixed(1) + " km del local";
+        }
+      })
+      .catch(function() {
+        mostrarZona(kmDetectado <= 25 ? "tucuman_capital" : "tucuman_interior");
+        if (coordsEl) coordsEl.innerHTML = "📍 A " + kmDetectado.toFixed(1) + " km del local";
+      });
+  }, 600);
+}
+
 function detectarUbicacion() {
-  const btn = document.getElementById("btnGeo");
-  if (!navigator.geolocation) return;
-  btn.disabled=true; btn.textContent="📍 Detectando...";
-  navigator.geolocation.getCurrentPosition(async pos => {
-    const { latitude: lat, longitude: lng } = pos.coords;
-    const R = 6371;
-    const dLat = (lat-ORIGEN_LAT)*Math.PI/180;
-    const dLng = (lng-ORIGEN_LNG)*Math.PI/180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(ORIGEN_LAT*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLng/2)**2;
-    kmDetectado = R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-    try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-      const d = await r.json();
-      const prov = (d.address?.state||"").toLowerCase();
-      let clave = "otro";
-      if (prov.includes("tucum")) clave = kmDetectado<=25?"tucuman_capital":"tucuman_interior";
-      else if (["salta","jujuy","catamarca","santiago","la rioja"].some(p=>prov.includes(p))) clave="noa";
-      else if (["córdoba","cordoba","santa fe","entre ríos","entre rios"].some(p=>prov.includes(p))) clave="centro";
-      else if (prov.includes("buenos")) clave="bsas";
-      mostrarZona(clave);
-      document.getElementById("selProvincia").value=clave;
-      btn.textContent="✓ Ubicación detectada";
-    } catch {
-      mostrarZona(kmDetectado<=25?"tucuman_capital":"tucuman_interior");
-      btn.textContent="✓ Ubicación aproximada";
-    }
-  }, () => { btn.disabled=false; btn.textContent="📍 Detectar mi ubicación automáticamente"; }, { timeout:8000 });
+  var btn = document.getElementById("btnGeo");
+  if (!navigator.geolocation) {
+    initMapa(ORIGEN_LAT, ORIGEN_LNG);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "📍 Detectando...";
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    btn.textContent = "✓ Ubicación detectada — ajustala en el mapa";
+    btn.disabled = false;
+    initMapa(pos.coords.latitude, pos.coords.longitude);
+  }, function() {
+    btn.disabled = false;
+    btn.textContent = "📍 No se pudo detectar — marcá en el mapa";
+    initMapa(ORIGEN_LAT, ORIGEN_LNG);
+  }, { timeout: 8000, enableHighAccuracy: true });
 }
 
 function actualizarPaso3() {
-  const esEnvio = tipoEnvioEl()==="envio";
+  var esEnvio = tipoEnvioEl()==="envio";
   document.getElementById("step3Envio").style.display  = esEnvio?"flex":"none";
   document.getElementById("step3Retiro").style.display = esEnvio?"none":"block";
   document.getElementById("camposDireccion").style.display = esEnvio?"flex":"none";
+  if (esEnvio && _mapa) setTimeout(function(){ _mapa.invalidateSize(); }, 150);
 }
 
 document.getElementById("btnPaso3a4").addEventListener("click", () => {
