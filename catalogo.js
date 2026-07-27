@@ -34,19 +34,18 @@ function comprarAhora(btn) {
   const id = btn.dataset.id;
   const name = btn.dataset.name;
   const price = Number(btn.dataset.price) || 0;
-  const href = btn.dataset.href;
-  const fuente = btn.dataset.fuente || "";
-  const precioBase = Number(btn.dataset.precioBase) || 0;
-  const key = id + "|" + href;
+  const reqMin = Number(btn.dataset.reqMin) || 0;
+  const baseUnits = Number(btn.dataset.baseUnits) || 0;
+  const key = id;
 
   cart = [{
     key: key,
     id: id,
     name: name,
     price: price,
-    href: href,
-    fuente: fuente,
-    precioBase: precioBase,
+    reqMin: reqMin,
+    baseUnits: baseUnits,
+    pv: btn.dataset.pv || "",
     qty: 1
   }];
 
@@ -62,9 +61,10 @@ function comprarAhora(btn) {
 }
 
 function addToCartFromBtn(btn) {
-  const { id, name, price, href, fuente } = btn.dataset;
-  const precioBase = parseFloat(btn.dataset.precioBase || 0);
-  const key = id + "|" + href;
+  const { id, name, price } = btn.dataset;
+  const reqMin    = Number(btn.dataset.reqMin) || 0;
+  const baseUnits = Number(btn.dataset.baseUnits) || 0;
+  const key = id;
 
   const found = cart.find(i => i.key === key);
 
@@ -76,9 +76,9 @@ function addToCartFromBtn(btn) {
       id,
       name,
       price: parseFloat(price) || 0,
-      href,
-      fuente: fuente || "",
-      precioBase,
+      reqMin,
+      baseUnits,
+      pv: btn.dataset.pv || "",
       qty: 1
     });
   }
@@ -292,7 +292,7 @@ function similitud(a, b) {
 function buscarEquivalenteXimaro(nombre) {
   const indice = window.CATALOGO_INDEX || [];
   return indice
-    .filter(p => p.fuente !== "DAZ Importadora")
+    .filter(p => !p.reqMin)
     .map(p => ({ ...p, sim: similitud(nombre, p.name) }))
     .filter(p => p.sim >= 0.35)
     .sort((a,b) => b.sim - a.sim)
@@ -303,7 +303,7 @@ function buscarProductosDAZ() {
   const q = document.getElementById("dazSearch").value.toLowerCase().trim();
   const indice = window.CATALOGO_INDEX || [];
   const results = indice
-    .filter(p => p.fuente === "DAZ Importadora" && (!q || p.name.toLowerCase().includes(q)))
+    .filter(p => p.reqMin && (!q || p.name.toLowerCase().includes(q)))
     .slice(0, 8);
   renderSugResults(results, "dazSearchResults");
 }
@@ -316,7 +316,7 @@ function renderSugCard(p, contenedor) {
     <div class="sug-card-info">
       <div class="sug-card-name">${p.name}</div>
       <div class="sug-card-precio">${fmt(p.precio)}</div>
-      <div class="sug-card-tag">${p.fuente === "DAZ Importadora" ? "Mismo proveedor" : "✓ Disponible desde 1 unidad"}</div>
+      <div class="sug-card-tag">${p.reqMin ? "Compra combinada" : "✓ Disponible desde 1 unidad"}</div>
     </div>
     <button class="sug-add" onclick="agregarDesdeIndice('${p.id}')">+ Agregar</button>`;
   document.getElementById(contenedor).appendChild(div);
@@ -332,10 +332,10 @@ function renderSugResults(items, contenedor) {
 function agregarDesdeIndice(id) {
   const p = (window.CATALOGO_INDEX||[]).find(x => x.id === id);
   if (!p) return;
-  const key = p.id + "|" + p.href;
+  const key = p.id;
   const found = cart.find(i => i.key === key);
   if (found) found.qty++;
-  else cart.push({ key, id: p.id, name: p.name, price: p.precio, href: p.href, fuente: p.fuente, precioBase: p.precioBase, qty:1 });
+  else cart.push({ key, id: p.id, name: p.name, price: p.precio, reqMin: p.reqMin, baseUnits: p.baseUnits, pv: p.pv||"", qty:1 });
   saveCart();
   // Reconstruir resumen del paso 1
   construirResumen();
@@ -350,10 +350,10 @@ function agregarDesdeIndice(id) {
 }
 
 function calcularProblemaDAZ() {
-  const itemsDAZ = cart.filter(i => i.fuente === "DAZ Importadora");
+  const itemsDAZ = cart.filter(i => i.reqMin);
   if (!itemsDAZ.length) return null;
-  const totalBaseDAZ = itemsDAZ.reduce((s,i) => s + (parseFloat(i.precioBase||0) * i.qty), 0);
-  const minimo = window.MINIMO_DAZ_BASE || 50000;
+  const totalBaseDAZ = itemsDAZ.reduce((s,i) => s + (parseFloat(i.baseUnits||0) * i.qty), 0);
+  const minimo = 1000; // unidades relativas
   if (totalBaseDAZ >= minimo) return null;
   const falta = minimo - totalBaseDAZ;
   return { itemsDAZ, totalBaseDAZ, falta, minimo };
@@ -896,7 +896,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 
     const filas = cart.map(i=>({
       fecha, cliente:nombre, dni, telefono:tel, producto:i.name,
-      proveedor:i.fuente||"Catalogo", cantidad:i.qty,
+      proveedor:(i.pv||"-")+" "+(i.id||""), cantidad:i.qty,
       precio_unit:i.price, subtotal:i.price*i.qty,
       total:totalFinal, direccion, notas,
       metodo_pago:esMP?"Mercado Pago":"Transferencia",
@@ -1292,6 +1292,14 @@ function abrirProductoCard(el) {
   } catch(e) { console.error("Error abriendo producto:", e); }
 }
 
+function codigoInterno(raw) {
+  var s = String(raw == null ? "" : raw);
+  if (/^d+$/.test(s)) return "JR-" + s;
+  var h = 5381;
+  for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return "JR-" + (h % 100000).toString().padStart(5, "0");
+}
+
 function cambiarQtyModal(delta) {
   var el = document.getElementById("prodQty");
   if (!el) return;
@@ -1328,11 +1336,9 @@ function abrirProducto(dataStr) {
   // Meta: proveedor
   var metaEl = document.getElementById("prodMeta");
   if (metaEl) {
-    metaEl.innerHTML = p.fuente
-      ? '<span>Proveedor: <strong>' + p.fuente + '</strong></span>'
-        + '<span class="prod-meta-sep"></span>'
-        + '<span>Codigo: <strong>' + (p.id||"-") + '</strong></span>'
-      : '';
+    metaEl.innerHTML = '<span>Codigo: <strong>' + codigoInterno(p.id) + '</strong></span>'
+      + '<span class="prod-meta-sep"></span>'
+      + '<span>Vendido por <strong>JR Shop</strong></span>';
   }
 
   // Cuotas
@@ -1381,11 +1387,11 @@ function abrirProducto(dataStr) {
   if (p.descripcion) {
     document.getElementById("prodDesc").textContent = p.descripcion;
   } else {
-    fetchDescripcion(p.href, p.fuente, p.name);
+    fetchDescripcion("", "", p.name);
   }
 
   var wrap = document.getElementById("prodImgWrap");
-  wrap.innerHTML = '<button class="prod-close" onclick="cerrarProducto()">×</button>';
+  wrap.innerHTML = "";
   if (p.imgUrl) {
     var img = document.createElement("img");
     img.src = p.imgUrl; img.alt = p.name; img.referrerPolicy = "no-referrer";
@@ -1404,10 +1410,10 @@ function abrirProducto(dataStr) {
   btnAgregar.onclick = function() {
     var qEl = document.getElementById("prodQty");
     var n = Math.max(1, parseInt(qEl && qEl.value, 10) || 1);
-    var key = p.id+"|"+p.href;
+    var key = p.id;
     var found = cart.find(function(i){return i.key===key;});
     if (found) found.qty += n;
-    else cart.push({key:key,id:p.id,name:p.name,price:p.precioCatalogo,href:p.href,fuente:p.fuente,precioBase:p.precioBase,qty:n});
+    else cart.push({key:key,id:p.id,name:p.name,price:p.precioCatalogo,reqMin:p.reqMin,baseUnits:p.baseUnits,pv:p.pv||"",qty:n});
     saveCart();
     btnAgregar.innerHTML = "&#10003; Agregado (" + n + ")";
     btnAgregar.style.background = "#16a34a";
@@ -1451,7 +1457,6 @@ function abrirProducto(dataStr) {
   }
 
   document.getElementById("prodOverlay").classList.add("open");
-  fetchDescripcion(p.href, p.fuente, p.name);
 }
 
 function cerrarProducto() {
@@ -1508,7 +1513,7 @@ renderMasVistos();
       id: prod.id, name: prod.name, href: prod.href,
       imgUrl: prod.imgUrl, precioCatalogo: prod.precio,
       precioConDesc: prod.precioMin5, pctIndTexto: 5,
-      fuente: prod.fuente, precioBase: prod.precioBase
+      reqMin: prod.reqMin, baseUnits: prod.baseUnits, pv: prod.pv||""
     });
     abrirProducto(dataStr);
     window.history.replaceState({}, "", window.location.pathname);
@@ -1579,9 +1584,9 @@ function renderDestacados() {
                : precioCatalogo <= 200000 ? 18 : 20;
     var precioConDesc = Math.round(precioCatalogo * (1 - pctInd/100));
     var b64 = btoa(unescape(encodeURIComponent(JSON.stringify({
-      id: p.id, name: p.name, href: p.href, imgUrl: p.imgUrl,
+      id: p.id, name: p.name, imgUrl: p.imgUrl,
       precioCatalogo: precioCatalogo, precioConDesc: precioConDesc,
-      pctIndTexto: pctInd, fuente: p.fuente, precioBase: p.precioBase
+      pctIndTexto: pctInd, reqMin: p.reqMin, baseUnits: p.baseUnits, pv: p.pv
     }))));
     var vistas = mv[p.id] || 0;
     var esMundial = esProductoMundial(p.name);
@@ -1604,9 +1609,9 @@ function renderDestacados() {
 + ' data-id="' + p.id + '"'
 + ' data-name="' + p.name + '"'
 + ' data-price="' + precioCatalogo + '"'
-+ ' data-href="' + p.href + '"'
-+ ' data-fuente="' + p.fuente + '"'
-+ ' data-precio-base="' + p.precioBase + '">'
++ ' data-req-min="' + (p.reqMin||0) + '"'
++ ' data-base-units="' + (p.baseUnits||0) + '"'
++ ' data-pv="' + (p.pv||'') + '">'
 + 'Comprar'
 + '</button>'
 
@@ -1614,9 +1619,9 @@ function renderDestacados() {
 + ' data-id="' + p.id + '"'
 + ' data-name="' + p.name + '"'
 + ' data-price="' + precioCatalogo + '"'
-+ ' data-href="' + p.href + '"'
-+ ' data-fuente="' + p.fuente + '"'
-+ ' data-precio-base="' + p.precioBase + '"'
++ ' data-req-min="' + (p.reqMin||0) + '"'
++ ' data-base-units="' + (p.baseUnits||0) + '"'
++ ' data-pv="' + (p.pv||'') + '"'
 + ' title="Agregar al carrito">'
 
 + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">'
