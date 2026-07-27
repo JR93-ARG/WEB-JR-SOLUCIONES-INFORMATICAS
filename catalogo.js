@@ -173,7 +173,10 @@ function obtenerTotalPedido(data) {
 }
 
 function renderCart() {
-  document.getElementById("cartCount").textContent = cart.reduce((s,i)=>s+i.qty,0);
+  var _n = cart.reduce(function(s,i){return s+i.qty;},0);
+  document.getElementById("cartCount").textContent = _n;
+  var _hb = document.getElementById("cartCountHdr");
+  if (_hb) _hb.textContent = _n;
   const itemsEl = document.getElementById("cartItems");
   if (!itemsEl) return;
   if (!cart.length) {
@@ -563,7 +566,7 @@ function claveZonaPorProvincia(prov, km) {
   prov = (prov||"").toLowerCase();
   if (prov.indexOf("tucum") >= 0) return km <= 25 ? "tucuman_capital" : "tucuman_interior";
   if (["salta","jujuy","catamarca","santiago","la rioja"].some(function(p){return prov.indexOf(p)>=0;})) return "noa";
-  if (["córdoba","cordoba","santa fe","entre ríos","entre rios"].some(function(p){return prov.indexOf(p)>=0;})) return "centro";
+  if (["cordoba","santa fe","entre rios"].some(function(p){return prov.indexOf(p)>=0;})) return "centro";
   if (prov.indexOf("buenos") >= 0) return "bsas";
   return "otro";
 }
@@ -583,8 +586,7 @@ function initMapa(lat, lng) {
 
   _mapa = L.map("mapaUbicacion", { zoomControl: true }).setView([lat, lng], 15);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "© OpenStreetMap"
+    maxZoom: 19, attribution: "OpenStreetMap"
   }).addTo(_mapa);
 
   _marcador = L.marker([lat, lng], { draggable: true }).addTo(_mapa);
@@ -606,7 +608,7 @@ function actualizarDesdeMapa(lat, lng) {
   var coordsEl = document.getElementById("mapaCoords");
   if (coordsEl) {
     coordsEl.classList.add("visible");
-    coordsEl.innerHTML = "📍 A " + kmDetectado.toFixed(1) + " km del local · Buscando dirección...";
+    coordsEl.textContent = "A " + kmDetectado.toFixed(1) + " km del local - buscando direccion...";
   }
   clearTimeout(_geoTimer);
   _geoTimer = setTimeout(function() {
@@ -619,50 +621,68 @@ function actualizarDesdeMapa(lat, lng) {
         var sel = document.getElementById("selProvincia");
         if (sel) sel.value = clave;
 
-        // Autocompletar dirección
-        var calle = [a.road, a.house_number].filter(Boolean).join(" ");
+        var calle  = [a.road, a.house_number].filter(Boolean).join(" ");
         var ciudad = a.city || a.town || a.village || a.suburb || "";
-        var cp = a.postcode || "";
-        var inpDir = document.getElementById("inpDireccion");
-        var inpCiu = document.getElementById("inpCiudad");
-        var inpCP  = document.getElementById("inpCP");
-        if (inpDir && calle && !inpDir.value.trim()) inpDir.value = calle;
-        if (inpCiu && ciudad) inpCiu.value = ciudad;
-        if (inpCP && cp) inpCP.value = cp;
+        var cp     = a.postcode || "";
+        var iDir = document.getElementById("inpDireccion");
+        var iCiu = document.getElementById("inpCiudad");
+        var iCP  = document.getElementById("inpCP");
+        if (iDir && calle && !iDir.value.trim()) { iDir.value = calle; marcarOk(iDir); }
+        if (iCiu && ciudad) { iCiu.value = ciudad; marcarOk(iCiu); }
+        if (iCP && cp) { iCP.value = cp; marcarOk(iCP); }
 
         if (coordsEl) {
-          var txt = [calle, ciudad].filter(Boolean).join(", ") || "Ubicación seleccionada";
-          coordsEl.innerHTML = "📍 " + txt + " · a " + kmDetectado.toFixed(1) + " km del local";
+          var txt = [calle, ciudad].filter(Boolean).join(", ") || "Ubicacion seleccionada";
+          coordsEl.textContent = txt + " - a " + kmDetectado.toFixed(1) + " km del local";
         }
       })
       .catch(function() {
         mostrarZona(kmDetectado <= 25 ? "tucuman_capital" : "tucuman_interior");
-        if (coordsEl) coordsEl.innerHTML = "📍 A " + kmDetectado.toFixed(1) + " km del local";
+        if (coordsEl) coordsEl.textContent = "A " + kmDetectado.toFixed(1) + " km del local";
       });
   }, 600);
 }
 
+function validarCampoVisual(input) {
+  var f = input.closest(".field");
+  if (!f) return;
+  var v = (input.value || "").trim();
+  var ok = v.length >= 3;
+  if (input.id === "inpDNI")      ok = v.replace(/D/g,"").length >= 7;
+  if (input.id === "inpTelefono") ok = v.replace(/D/g,"").length >= 8;
+  if (input.id === "inpCP")       ok = v.length >= 4;
+  if (input.id === "inpNotas")    ok = v.length > 0;
+  f.classList.toggle("ok", ok);
+}
+
+["inpNombre","inpDNI","inpTelefono","inpNotas","inpDireccion","inpCiudad","inpCP"].forEach(function(id){
+  var el = document.getElementById(id);
+  if (el) el.addEventListener("input", function(){ validarCampoVisual(el); });
+});
+
+function marcarOk(input) {
+  var f = input.closest(".field");
+  if (f) f.classList.add("ok");
+}
+
 function detectarUbicacion() {
   var btn = document.getElementById("btnGeo");
-  if (!navigator.geolocation) {
-    initMapa(ORIGEN_LAT, ORIGEN_LNG);
-    return;
-  }
+  if (!navigator.geolocation) { initMapa(ORIGEN_LAT, ORIGEN_LNG); return; }
   btn.disabled = true;
-  btn.textContent = "📍 Detectando...";
+  btn.textContent = "Detectando ubicacion...";
   navigator.geolocation.getCurrentPosition(function(pos) {
-    btn.textContent = "✓ Ubicación detectada — ajustala en el mapa";
     btn.disabled = false;
+    btn.textContent = "Ubicacion detectada - ajustala en el mapa";
     initMapa(pos.coords.latitude, pos.coords.longitude);
   }, function() {
     btn.disabled = false;
-    btn.textContent = "📍 No se pudo detectar — marcá en el mapa";
+    btn.textContent = "No se pudo detectar - marca en el mapa";
     initMapa(ORIGEN_LAT, ORIGEN_LNG);
   }, { timeout: 8000, enableHighAccuracy: true });
 }
 
 function actualizarPaso3() {
-  var esEnvio = tipoEnvioEl()==="envio";
+  const esEnvio = tipoEnvioEl()==="envio";
   document.getElementById("step3Envio").style.display  = esEnvio?"flex":"none";
   document.getElementById("step3Retiro").style.display = esEnvio?"none":"block";
   document.getElementById("camposDireccion").style.display = esEnvio?"flex":"none";
@@ -1143,6 +1163,23 @@ function getQuery() {
 // Dropdown de categorías
 var _sortActual = "novedad";
 
+function toggleCart() {
+  var p = document.getElementById("cartPanel");
+  if (p) p.classList.toggle("open");
+}
+
+function irADestacados() {
+  seleccionarCat("Todos");
+  var el = document.getElementById("sec-destacados");
+  if (el) setTimeout(function(){ el.scrollIntoView({behavior:"smooth", block:"start"}); }, 80);
+}
+
+function irANovedades() {
+  seleccionarCat("Todos");
+  var el = document.querySelector(".novedades-wrap") || document.getElementById("sec-recientes");
+  if (el) setTimeout(function(){ el.scrollIntoView({behavior:"smooth", block:"start"}); }, 80);
+}
+
 function toggleSortMenu() {
   var m = document.getElementById("sortMenu");
   if (m) m.classList.toggle("open");
@@ -1255,6 +1292,14 @@ function abrirProductoCard(el) {
   } catch(e) { console.error("Error abriendo producto:", e); }
 }
 
+function cambiarQtyModal(delta) {
+  var el = document.getElementById("prodQty");
+  if (!el) return;
+  var v = parseInt(el.value, 10) || 1;
+  v = Math.max(1, Math.min(99, v + delta));
+  el.value = v;
+}
+
 function abrirProducto(dataStr) {
   var p;
   try { p = JSON.parse(dataStr); } catch(e) { return; }
@@ -1268,7 +1313,42 @@ function abrirProducto(dataStr) {
   document.getElementById("prodNombre").textContent = limpiarTextoCliente(p.name);
   document.getElementById("prodPrecioTransf").textContent = precioTexto;
   document.getElementById("prodPrecioMP").innerHTML       =
-    'Sin descuento (tarjeta / Mercado Pago): <strong>' + fmtMV(p.precioCatalogo) + '</strong>';
+    'Precio de lista: <s>' + fmtMV(p.precioCatalogo) + '</s>';
+
+  // Badges
+  var badgesEl = document.getElementById("prodBadges");
+  if (badgesEl) {
+    var bh = '';
+    if (p.pctIndTexto) bh += '<span class="pb pb-nuevo">' + p.pctIndTexto + '% OFF</span>';
+    if (precioConDesc >= 15000) bh += '<span class="pb pb-envio">Envio gratis en SMT</span>';
+    bh += '<span class="pb pb-stock">Disponible 24-48 hs</span>';
+    badgesEl.innerHTML = bh;
+  }
+
+  // Meta: proveedor
+  var metaEl = document.getElementById("prodMeta");
+  if (metaEl) {
+    metaEl.innerHTML = p.fuente
+      ? '<span>Proveedor: <strong>' + p.fuente + '</strong></span>'
+        + '<span class="prod-meta-sep"></span>'
+        + '<span>Codigo: <strong>' + (p.id||"-") + '</strong></span>'
+      : '';
+  }
+
+  // Cuotas
+  var cuotaBox = document.getElementById("prodCuotaBox");
+  var cuotaTxt = document.getElementById("prodCuotaTxt");
+  if (cuotaBox && cuotaTxt) {
+    if ((p.precioCatalogo||0) >= 50000) {
+      cuotaBox.style.display = "inline-flex";
+      cuotaTxt.textContent = "Hasta 6 cuotas de " + fmtMV(Math.round(p.precioCatalogo/6));
+    } else {
+      cuotaBox.style.display = "none";
+    }
+  }
+
+  var qtyEl = document.getElementById("prodQty");
+  if (qtyEl) qtyEl.value = 1;
 
   // Mostrar ahorro claro
   var ahorroEl = document.getElementById("prodAhorro");
@@ -1318,17 +1398,28 @@ function abrirProducto(dataStr) {
   }
 
   var btnAgregar = document.getElementById("prodBtnAgregar");
-  btnAgregar.textContent = "+ Agregar al carrito";
+  var HTML_ADD = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg> Agregar al carrito';
+  btnAgregar.innerHTML = HTML_ADD;
   btnAgregar.style.background = "";
   btnAgregar.onclick = function() {
+    var qEl = document.getElementById("prodQty");
+    var n = Math.max(1, parseInt(qEl && qEl.value, 10) || 1);
     var key = p.id+"|"+p.href;
     var found = cart.find(function(i){return i.key===key;});
-    if (found) found.qty++;
-    else cart.push({key:key,id:p.id,name:p.name,price:p.precioCatalogo,href:p.href,fuente:p.fuente,precioBase:p.precioBase,qty:1});
+    if (found) found.qty += n;
+    else cart.push({key:key,id:p.id,name:p.name,price:p.precioCatalogo,href:p.href,fuente:p.fuente,precioBase:p.precioBase,qty:n});
     saveCart();
-    btnAgregar.textContent="✓ Agregado"; btnAgregar.style.background="#16a34a";
-    setTimeout(function(){btnAgregar.textContent="+ Agregar al carrito";btnAgregar.style.background="";},1500);
+    btnAgregar.innerHTML = "&#10003; Agregado (" + n + ")";
+    btnAgregar.style.background = "#16a34a";
+    setTimeout(function(){ btnAgregar.innerHTML = HTML_ADD; btnAgregar.style.background=""; }, 1600);
   };
+
+  var btnShare = document.getElementById("prodBtnShare");
+  if (btnShare) {
+    btnShare.href = "https://wa.me/543812235528?text=" + encodeURIComponent(
+      p.name + " - " + precioTexto + " (con transferencia)\nhttps://www.jrshop.com.ar/"
+    );
+  }
   // Conectar simulador de crédito con este producto
   creditoPrecio    = p.precioCatalogo || 0;
   creditoNombre    = p.name || "";
