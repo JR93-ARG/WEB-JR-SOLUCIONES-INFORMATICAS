@@ -7,6 +7,7 @@ Escalabilidad: toda la lógica en gs_manager.py, listo para migrar a BD
 
 import os
 import re
+import json
 import time
 from collections import defaultdict
 from flask import Flask, request, jsonify
@@ -428,46 +429,124 @@ def solicitud_credito():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-CATALOGO_URL = "https://jr93-arg.github.io/WEB-JR-SOLUCIONES-INFORMATICAS"
+CATALOGO_URL   = "https://www.jrshop.com.ar"
+PRODUCTOS_JSON = f"{CATALOGO_URL}/productos.json"
+
+# Cache en memoria del catalogo publico (se refresca cada 30 min)
+_cache_productos = {"data": None, "ts": 0}
+_CACHE_TTL = 1800
+
+
+def _cargar_productos():
+    """Descarga productos.json de GitHub Pages con cache en memoria."""
+    import urllib.request as _ur
+    ahora = time.time()
+    if _cache_productos["data"] is not None and (ahora - _cache_productos["ts"]) < _CACHE_TTL:
+        return _cache_productos["data"]
+    try:
+        req = _ur.Request(PRODUCTOS_JSON, headers={"User-Agent": "JR-Preview/1.0"})
+        with _ur.urlopen(req, timeout=8) as r:
+            lista = json.loads(r.read().decode("utf-8"))
+        indice = {str(p.get("id", "")): p for p in lista}
+        _cache_productos["data"] = indice
+        _cache_productos["ts"]   = ahora
+        return indice
+    except Exception as e:
+        print(f"[preview] No se pudo cargar productos.json: {e}")
+        return _cache_productos["data"] or {}
+
+
+def _fmt_precio(v):
+    try:
+        return "$ " + f"{int(float(v)):,}".replace(",", ".")
+    except Exception:
+        return ""
+
 
 @app.route("/p/<producto_id>")
 def preview_producto(producto_id):
-    prod_id   = sanitizar(producto_id, 100)
-    try:
-        info = gs.obtener_info_producto(prod_id)
-    except Exception:
-        info = {}
+    """Landing con Open Graph para vistas previas en WhatsApp / Facebook."""
+    from flask import Response
+    from html import escape
 
-    nombre     = info.get("nombre", "JR Soluciones Informáticas")
-    precio     = info.get("precio", "")
-    imagen     = info.get("imagen", "") or f"{CATALOGO_URL}/og-image.jpg"
-    precio_txt = f"Desde {precio} con transferencia · " if precio else ""
-    og_image   = imagen if imagen.startswith("http") else f"{CATALOGO_URL}/og-image.jpg"
+    prod_id = sanitizar(producto_id, 60)
+    prod    = _cargar_productos().get(prod_id, {})
+
+    nombre_raw = prod.get("nombre") or "JR Shop - Tecnologia y electronica"
+    precio_raw = prod.get("precio")
+    pct        = prod.get("pct")
+    desc_raw   = prod.get("desc") or ""
+    img        = prod.get("img") or ""
+
+    partes = []
+    if precio_raw:
+        partes.append(_fmt_precio(precio_raw) + " con transferencia")
+    if pct:
+        partes.append(f"{pct}% OFF")
+    partes.append("Envio a todo el pais")
+    descripcion_raw = (desc_raw + " - " if desc_raw else "") + " | ".join(partes)
+
+    og_image = img if img.startswith("http") else f"{CATALOGO_URL}/og-image.jpg"
+    destino  = f"{CATALOGO_URL}/?id={prod_id}" if prod else CATALOGO_URL
+
+    nombre      = escape(nombre_raw, quote=True)
+    descripcion = escape(descripcion_raw, quote=True)
+    og_image_e  = escape(og_image, quote=True)
+    destino_e   = escape(destino, quote=True)
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta property="og:type"         content="product">
-  <meta property="og:site_name"    content="JR Soluciones Informaticas">
-  <meta property="og:title"        content="{nombre}">
-  <meta property="og:description"  content="{precio_txt}Tecnologia y electronica. Envio a todo el pais.">
-  <meta property="og:image"        content="{og_image}">
-  <meta property="og:image:width"  content="600">
-  <meta property="og:image:height" content="600">
-  <meta property="og:url"          content="{CATALOGO_URL}/?id={prod_id}">
-  <meta name="twitter:card"        content="summary_large_image">
-  <meta name="twitter:image"       content="{og_image}">
-  <meta http-equiv="refresh"       content="0;url={CATALOGO_URL}/?id={prod_id}">
-  <title>{nombre} - JR Soluciones</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{nombre} - JR Shop</title>
+
+  <meta property="og:type"          content="product">
+  <meta property="og:site_name"     content="JR Shop">
+  <meta property="og:locale"        content="es_AR">
+  <meta property="og:title"         content="{nombre}">
+  <meta property="og:description"   content="{descripcion}">
+  <meta property="og:image"         content="{og_image_e}">
+  <meta property="og:image:secure_url" content="{og_image_e}">
+  <meta property="og:image:width"   content="600">
+  <meta property="og:image:height"  content="600">
+  <meta property="og:image:alt"     content="{nombre}">
+  <meta property="og:url"           content="{destino_e}">
+
+  <meta name="twitter:card"         content="summary_large_image">
+  <meta name="twitter:title"        content="{nombre}">
+  <meta name="twitter:description"  content="{descripcion}">
+  <meta name="twitter:image"        content="{og_image_e}">
+
+  <link rel="canonical" href="{destino_e}">
+  <meta http-equiv="refresh" content="0;url={destino_e}">
+  <style>
+    body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:#f7f7fb;color:#1e1b30;display:flex;align-items:center;
+         justify-content:center;min-height:100vh;margin:0;text-align:center;padding:20px}}
+    .box{{background:#fff;border-radius:16px;padding:32px;max-width:340px;
+         box-shadow:0 4px 24px rgba(30,27,48,.1)}}
+    img{{max-width:180px;height:auto;margin-bottom:16px}}
+    h1{{font-size:17px;font-weight:700;margin:0 0 8px}}
+    p{{font-size:13px;color:#6b7280;margin:0 0 18px}}
+    a{{display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;
+       padding:12px 24px;border-radius:8px;font-weight:700;font-size:14px}}
+  </style>
 </head>
 <body>
-  <p>Redirigiendo...</p>
-  <script>window.location.replace("{CATALOGO_URL}/?id={prod_id}");</script>
+  <div class="box">
+    {f'<img src="{og_image_e}" alt="{nombre}">' if img else ''}
+    <h1>{nombre}</h1>
+    <p>{descripcion}</p>
+    <a href="{destino_e}">Ver en JR Shop</a>
+  </div>
+  <script>setTimeout(function(){{location.replace("{destino_e}");}},80);</script>
 </body>
 </html>"""
-    from flask import Response
-    return Response(html, mimetype="text/html")
+    resp = Response(html, mimetype="text/html")
+    resp.headers["Cache-Control"] = "public, max-age=600"
+    return resp
+
 
 # ── Actualización automática del catálogo ─────────────────────────────────
 import subprocess, threading as _threading
@@ -514,7 +593,7 @@ def _disparar_actualizacion():
             "WEB-JR-SOLUCIONES-INFORMATICAS"
         )
         archivos = ["index.html", "catalogo.css", "catalogo.js",
-                    "seguimiento.html", "CNAME"]
+                    "productos.json", "seguimiento.html", "CNAME"]
         subidos = 0
         for archivo in archivos:
             local = os.path.join(out_dir, archivo)
