@@ -1282,13 +1282,14 @@ fetch(API_MV + "/vistas-top", {
   }
 }).catch(() => renderMasVistos());
 
+// b64ToUtf8 se define inline en index.html antes del indice de productos.
+
 // Modal de producto
 function abrirProductoCard(el) {
   var b64 = el.dataset.prod;
   if (!b64) return;
   try {
-    var dataStr = atob(b64);
-    abrirProducto(dataStr);
+    abrirProducto(b64ToUtf8(b64));
   } catch(e) { console.error("Error abriendo producto:", e); }
 }
 
@@ -1422,9 +1423,11 @@ function abrirProducto(dataStr) {
 
   var btnShare = document.getElementById("prodBtnShare");
   if (btnShare) {
-    btnShare.href = "https://wa.me/543812235528?text=" + encodeURIComponent(
-      p.name + " - " + precioTexto + " (con transferencia)\nhttps://www.jrshop.com.ar/"
+    var linkProd = "https://jrrailway-production.up.railway.app/p/" + p.id;
+    btnShare.href = "https://wa.me/?text=" + encodeURIComponent(
+      limpiarTextoCliente(p.name) + "\n" + precioTexto + " con transferencia\n" + linkProd
     );
+    btnShare.title = "Compartir este producto";
   }
   // Conectar simulador de crédito con este producto
   creditoPrecio    = p.precioCatalogo || 0;
@@ -1509,15 +1512,21 @@ renderMasVistos();
   var prod = idx.find(function(p) { return p.id === idParam; });
   if (!prod) return;
   setTimeout(function() {
+    var pc  = prod.precio;
+    var pct = pc <= 20000  ? 5
+            : pc <= 50000  ? 10
+            : pc <= 100000 ? 15
+            : pc <= 200000 ? 18 : 20;
     var dataStr = JSON.stringify({
-      id: prod.id, name: prod.name, href: prod.href,
-      imgUrl: prod.imgUrl, precioCatalogo: prod.precio,
-      precioConDesc: prod.precioMin5, pctIndTexto: 5,
-      reqMin: prod.reqMin, baseUnits: prod.baseUnits, pv: prod.pv||""
+      id: prod.id, name: prod.name,
+      imgUrl: prod.imgUrl, precioCatalogo: pc,
+      precioConDesc: Math.round(pc * (1 - pct/100)), pctIndTexto: pct,
+      reqMin: prod.reqMin, baseUnits: prod.baseUnits, pv: prod.pv||"",
+      descripcion: ""
     });
     abrirProducto(dataStr);
     window.history.replaceState({}, "", window.location.pathname);
-  }, 800);
+  }, 700);
 })();
 
 // ── Destacados dinámicos — Mundial 2026 ──────────────────────────────────────
@@ -1948,7 +1957,7 @@ function agregarBadgesSociales() {
   try { mv = JSON.parse(sessionStorage.getItem("jrMasVistos")||"{}"); } catch(e){}
   document.querySelectorAll(".card[data-prod]").forEach(function(card) {
     try {
-      var p = JSON.parse(atob(card.dataset.prod));
+      var p = JSON.parse(b64ToUtf8(card.dataset.prod));
       var vistas = mv[p.id] || 0;
       var wrap = card.querySelector(".card-img");
       if (!wrap) return;
