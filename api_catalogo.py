@@ -456,11 +456,47 @@ def _cargar_productos():
         return _cache_productos["data"] or {}
 
 
-def _fmt_precio(v):
+def _parsear_num(v):
+    """Interpreta numeros en formato argentino o ingles: 43656 / 43.656 / 43,656.50 / $ 43.656,00"""
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).replace("$", "").replace(" ", "").replace("\u00a0", "").strip()
+    if not s:
+        return None
+    tiene_punto = "." in s
+    tiene_coma  = "," in s
+    if tiene_punto and tiene_coma:
+        # el separador decimal es el que aparece mas a la derecha
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    elif tiene_coma:
+        # "1,129,920" -> miles ; "43,656" -> miles ; "43,5" -> decimal
+        ent, _, dec = s.rpartition(",")
+        if s.count(",") > 1 or (len(dec) == 3 and ent.replace(",", "").isdigit()):
+            s = s.replace(",", "")
+        else:
+            s = s.replace(",", ".")
+    elif tiene_punto:
+        # "1.129.920" -> miles ; "43.656" -> miles ; "43656.00" -> decimal
+        ent, _, dec = s.rpartition(".")
+        if s.count(".") > 1 or (len(dec) == 3 and ent.replace(".", "").isdigit()):
+            s = s.replace(".", "")
     try:
-        return "$ " + f"{int(float(v)):,}".replace(",", ".")
-    except Exception:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _fmt_precio(v):
+    n = _parsear_num(v)
+    if n is None:
         return ""
+    entero = int(n + 0.5) if n >= 0 else -int(-n + 0.5)
+    return "$ " + f"{entero:,}".replace(",", ".")
 
 
 @app.route("/p/<producto_id>")
@@ -543,7 +579,7 @@ def preview_producto(producto_id):
   <script>setTimeout(function(){{location.replace("{destino_e}");}},80);</script>
 </body>
 </html>"""
-    resp = Response(html, mimetype="text/html")
+    resp = Response(html, content_type="text/html; charset=utf-8")
     resp.headers["Cache-Control"] = "public, max-age=600"
     return resp
 
