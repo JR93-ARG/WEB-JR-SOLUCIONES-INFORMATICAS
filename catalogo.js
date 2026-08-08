@@ -1593,22 +1593,105 @@ function fechaDiaDelNino(anio) {
 })();
 
 // ── Destacados dinámicos — Día del Niño ──────────────────────────────────────
-var PALABRAS_NINO = [
-  "juguete","juego","muneca","muñeca","peluche","auto a bateria","auto a batería",
-  "bicicleta","monopatin","monopatín","patineta","triciclo","pelota","futbol","fútbol",
-  "rompecabezas","puzzle","bloques","lego","didactic","armar","kit",
-  "consola","joystick","gamer","control inalambrico","control inalámbrico",
-  "tablet","auricular","parlante","camara infantil","cámara infantil",
-  "pistola","lanza","dardos","burbuja","masa","plastilina","pintura",
-  "escolar","mochila","cartuchera","marcador","crayon","crayón",
-  "infantil","niño","nino","nina","niña","kids","baby","bebe","bebé",
-  "disfraz","princesa","superheroe","superhéroe","robot","dinosaurio",
-  "karaoke","microfono","micrófono","reloj inteligente","smartwatch"
+
+// Exclusion dura: nunca es regalo, ni aunque diga "infantil" o "bebe"
+var EXCLUIR_DURO = [
+  "seguridad","vigilancia","espia","espias","cctv","dvr","nvr","domo",
+  "alarma","alarmas","sensor","sensores","cerradura","cerraduras",
+  "monitoreo","videoportero","portero","intercomunicador","detector",
+  "extintor","matafuego","candado","caja fuerte","precinto"
 ];
 
+// Marcadores inequivocos: si aparecen, es regalo para chicos si o si
+var MARCADORES_NINO = [
+  "infantil","infantiles","nino","ninos","nina","ninas","kids","kid",
+  "juguete","juguetes","bebe","bebes","baby","junior","jr"
+];
+
+// Categorias de regalo
+var PALABRAS_NINO = [
+  // Jugueteria
+  "juego","juegos","muneca","munecas","muneco","munecos","peluche","peluches",
+  "rompecabezas","puzzle","bloque","bloques","lego","ladrillito","ladrillitos",
+  "didactico","didactica","encastre","castillo","casita","cocinita","carrito",
+  "tobogan","hamaca","pelotero","calesita","cuna","cochecito",
+  // Cartas y mesa
+  "carta","cartas","naipe","naipes","uno","ludo","ajedrez","dama","damas",
+  "domino","jenga","dado","dados","metegol","tateti",
+  // Vehiculos
+  "bicicleta","bicicletas","bici","triciclo","monopatin","patineta","scooter",
+  "patin","patines","cuatriciclo","karting",
+  // Gaming
+  "consola","consolas","joystick","joysticks","gamepad","gamer","gaming",
+  "playstation","xbox","nintendo","retro","arcade",
+  // Tecnologia
+  "telefono","telefonos","celular","celulares","smartphone","smartphones",
+  "reloj","relojes","smartwatch","auricular","auriculares","tablet","tablets",
+  "parlante","parlantes","microfono","karaoke",
+  // Deportes y aire libre
+  "pelota","pelotas","futbol","basquet","arco","inflable","pileta","pistola",
+  // Creatividad
+  "plastilina","slime","burbuja","burbujas","disfraz","disfraces",
+  "acuarela","crayon","crayones",
+  // Escolar
+  "mochila","mochilas","cartuchera","escolar","escolares",
+  // Personajes
+  "princesa","princesas","superheroe","superheroes","dinosaurio","dinosaurios",
+  "unicornio","unicornios","hada","dragon"
+];
+
+// Productos que NO son regalo para chicos aunque compartan alguna palabra
+var EXCLUIR_NINO = [
+  // Herramientas y ferreteria
+  "herramienta","herramientas","taladro","amoladora","soldador","soldadora",
+  "sierra","atornillador","destornillador","pinza","pinzas","llave","llaves",
+  "martillo","escalera","andamio","nivel","cinta metrica","alicate",
+  // Electrodomesticos
+  "aspiradora","masajeador","balanza","licuadora","cafetera","heladera",
+  "microondas","plancha","batidora","tostadora","freidora","procesadora",
+  "ventilador","calefactor","estufa","termotanque","lavarropas","secarropas",
+  "extractor","purificador","humidificador",
+  // Bazar y hogar
+  "sabana","sabanas","toalla","toallas","olla","ollas","sarten","cubierto",
+  "cubiertos","copa","copas","vaso","vasos","jarra","mantel","cortina",
+  "colchon","acolchado","almohada","frazada","repasador","bandeja",
+  "organizador","perchero","zapatero","estante","repisa","tender",
+  // Cuidado personal
+  "secador","afeitadora","depiladora","planchita","buclera","maquillaje",
+  "cortapelo","masajeadora",
+  // Gimnasio y fitness
+  "fija","ejercicio","gimnasio","spinning","eliptica","trotadora","caminadora",
+  "mancuerna","mancuernas","pesa","pesas","abdominal","colchoneta",
+  // Otros no-juguete
+  "pared","profesional","industrial","automotor","reparacion","soldar","autoparte"
+];
+
+function normalizarNombre(s) {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9s]/g, " ")
+    .replace(/s+/g, " ")
+    .trim();
+}
+
+function contienePalabra(texto, lista) {
+  for (var i = 0; i < lista.length; i++) {
+    if (texto.indexOf(" " + lista[i] + " ") >= 0) return true;
+  }
+  return false;
+}
+
 function esProductoNino(nombre) {
-  var n = (nombre || "").toLowerCase();
-  return PALABRAS_NINO.some(function(w) { return n.indexOf(w) >= 0; });
+  var n = " " + normalizarNombre(nombre) + " ";
+  // 1. Rubros que nunca son regalo (seguridad, vigilancia, etc.)
+  if (contienePalabra(n, EXCLUIR_DURO)) return false;
+  // 2. Marcador inequivoco gana sobre el resto de exclusiones
+  if (contienePalabra(n, MARCADORES_NINO)) return true;
+  // 3. Producto de adulto
+  if (contienePalabra(n, EXCLUIR_NINO)) return false;
+  // 4. Categoria de regalo
+  return contienePalabra(n, PALABRAS_NINO);
 }
 
 function renderDestacados() {
