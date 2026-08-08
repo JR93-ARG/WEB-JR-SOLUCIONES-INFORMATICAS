@@ -1163,6 +1163,38 @@ function getQuery() {
 // Dropdown de categorías
 var _sortActual = "novedad";
 
+// ── Carrusel del hero ──────────────────────────────────────────────────
+(function() {
+  var slider = document.getElementById("heroSlider");
+  if (!slider) return;
+  var slides = slider.querySelectorAll(".hero-slide");
+  var dots   = slider.querySelectorAll(".hero-dot");
+  if (slides.length < 2) return;
+
+  var actual = 0, timer = null;
+
+  function mostrar(i) {
+    actual = (i + slides.length) % slides.length;
+    for (var k = 0; k < slides.length; k++) {
+      slides[k].classList.toggle("on", k === actual);
+      if (dots[k]) dots[k].classList.toggle("on", k === actual);
+    }
+  }
+  function arrancar() { timer = setInterval(function(){ mostrar(actual + 1); }, 4000); }
+  function frenar()   { clearInterval(timer); }
+
+  for (var d = 0; d < dots.length; d++) {
+    (function(idx) {
+      dots[idx].addEventListener("click", function() {
+        frenar(); mostrar(idx); arrancar();
+      });
+    })(d);
+  }
+  slider.addEventListener("mouseenter", frenar);
+  slider.addEventListener("mouseleave", arrancar);
+  arrancar();
+})();
+
 function toggleCart() {
   var p = document.getElementById("cartPanel");
   if (p) p.classList.toggle("open");
@@ -1529,12 +1561,54 @@ renderMasVistos();
   }, 700);
 })();
 
-// ── Destacados dinámicos — Mundial 2026 ──────────────────────────────────────
-var PALABRAS_MUNDIAL = ["tv", "smart tv", "television", "televisor", "parlante", "speaker", "proyector", "tv box", "android box", "bandera", "gorro", "camiseta", "auricular", "soundbar"];
+// ── Día del Niño: tercer domingo de agosto (Argentina) ──
+function fechaDiaDelNino(anio) {
+  var d = new Date(anio, 7, 1);              // 1 de agosto
+  var domingos = 0;
+  while (true) {
+    if (d.getDay() === 0) { domingos++; if (domingos === 3) break; }
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
+}
 
-function esProductoMundial(nombre) {
-  var n = nombre.toLowerCase();
-  return PALABRAS_MUNDIAL.some(function(w) { return n.indexOf(w) >= 0; });
+(function() {
+  var el = document.getElementById("destSub");
+  if (!el) return;
+  var hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  var fecha = fechaDiaDelNino(hoy.getFullYear());
+  if (fecha < hoy) fecha = fechaDiaDelNino(hoy.getFullYear() + 1);
+
+  var dias = Math.round((fecha - hoy) / 86400000);
+  var MESES = ["enero","febrero","marzo","abril","mayo","junio",
+               "julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  var txt = "Domingo " + fecha.getDate() + " de " + MESES[fecha.getMonth()];
+
+  if (dias === 0)      txt = "¡Es hoy! 🎉";
+  else if (dias === 1) txt = "¡Mañana! · " + txt;
+  else if (dias <= 30) txt = "Faltan " + dias + " días · " + txt;
+
+  el.textContent = txt;
+})();
+
+// ── Destacados dinámicos — Día del Niño ──────────────────────────────────────
+var PALABRAS_NINO = [
+  "juguete","juego","muneca","muñeca","peluche","auto a bateria","auto a batería",
+  "bicicleta","monopatin","monopatín","patineta","triciclo","pelota","futbol","fútbol",
+  "rompecabezas","puzzle","bloques","lego","didactic","armar","kit",
+  "consola","joystick","gamer","control inalambrico","control inalámbrico",
+  "tablet","auricular","parlante","camara infantil","cámara infantil",
+  "pistola","lanza","dardos","burbuja","masa","plastilina","pintura",
+  "escolar","mochila","cartuchera","marcador","crayon","crayón",
+  "infantil","niño","nino","nina","niña","kids","baby","bebe","bebé",
+  "disfraz","princesa","superheroe","superhéroe","robot","dinosaurio",
+  "karaoke","microfono","micrófono","reloj inteligente","smartwatch"
+];
+
+function esProductoNino(nombre) {
+  var n = (nombre || "").toLowerCase();
+  return PALABRAS_NINO.some(function(w) { return n.indexOf(w) >= 0; });
 }
 
 function renderDestacados() {
@@ -1549,13 +1623,15 @@ function renderDestacados() {
 
   var maxPrecio = Math.max.apply(null, idx.map(function(p){ return p.precio||0; }));
 
-  // Primero productos mundialeros con más vistas o precio alto
-  var mundiales = idx
-    .filter(function(p){ return p.precio > 0 && esProductoMundial(p.name); })
+  // Primero productos para chicos, priorizando precio accesible y vistas
+  var infantiles = idx
+    .filter(function(p){ return p.precio > 0 && esProductoNino(p.name); })
     .map(function(p) {
       var vistas = mv[p.id] || 0;
       var pctP   = maxPrecio > 0 ? (p.precio / maxPrecio) : 0;
-      return { p: p, score: vistas * 3 + pctP * 2 + 10 }; // bonus por ser mundialero
+      // para regalos se premia el precio accesible, no el mas caro
+      var accesible = p.precio <= 60000 ? 3 : p.precio <= 120000 ? 1.5 : 0;
+      return { p: p, score: vistas * 3 + accesible + pctP + 10 };
     })
     .sort(function(a,b){ return b.score - a.score; })
     .slice(0, 6)
@@ -1564,8 +1640,8 @@ function renderDestacados() {
   // Completar con los más vistos generales si hay menos de 8
   var resto = idx
     .filter(function(p){
-      return p.precio > 0 && !esProductoMundial(p.name) &&
-             !mundiales.find(function(m){ return m.id === p.id; });
+      return p.precio > 0 && !esProductoNino(p.name) &&
+             !infantiles.find(function(m){ return m.id === p.id; });
     })
     .map(function(p) {
       var vistas = mv[p.id] || 0;
@@ -1573,11 +1649,11 @@ function renderDestacados() {
       return { p: p, score: vistas * 3 + pctP * 2 };
     })
     .sort(function(a,b){ return b.score - a.score; })
-    .slice(0, 8 - mundiales.length)
+    .slice(0, 8 - infantiles.length)
     .map(function(x){ return x.p; });
 
-  // Si no hay nada mundialero, fallback a los más caros
-  var scored = mundiales.concat(resto);
+  // Si no hay nada infantil, fallback a los más vendidos
+  var scored = infantiles.concat(resto);
   if (!scored.length) {
     scored = idx
       .filter(function(p){ return p.precio > 0; })
@@ -1598,9 +1674,9 @@ function renderDestacados() {
       pctIndTexto: pctInd, reqMin: p.reqMin, baseUnits: p.baseUnits, pv: p.pv
     }))));
     var vistas = mv[p.id] || 0;
-    var esMundial = esProductoMundial(p.name);
-    var badge = esMundial
-      ? '<span class="badge-mundial">⚽ Mundial</span>'
+    var esNino = esProductoNino(p.name);
+    var badge = esNino
+      ? '<span class="badge-nino">🎁 Día del Niño</span>'
       : (vistas >= 5 ? '<span class="badge-vistas">' + vistas + ' vistas</span>' : '');
     return '<div class="card" data-prod="' + b64 + '" onclick="abrirProductoCard(this)" style="cursor:pointer">'
       + '<div class="card-img">'
