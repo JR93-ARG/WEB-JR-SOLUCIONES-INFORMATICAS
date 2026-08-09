@@ -23,6 +23,8 @@ def add_cors(response):
         "https://jr93-arg.github.io",
         "https://www.jrshop.com.ar",
         "https://jrshop.com.ar",
+        "https://www.jrshop.site",
+        "https://jrshop.site",
         "http://localhost",
         "http://127.0.0.1",
         "null",
