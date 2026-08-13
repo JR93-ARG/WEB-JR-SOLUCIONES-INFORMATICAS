@@ -1446,7 +1446,7 @@ function abrirProducto(dataStr) {
 
   var btnShare = document.getElementById("prodBtnShare");
   if (btnShare) {
-    var linkProd = "https://www.jrshop.site/p/" + p.id;
+    var linkProd = "https://www.jrshop.com.ar/p/" + p.id + ".html";
     btnShare.href = "https://wa.me/?text=" + encodeURIComponent(
       limpiarTextoCliente(p.name) + "\n" + precioTexto + " con transferencia\n" + linkProd
     );
