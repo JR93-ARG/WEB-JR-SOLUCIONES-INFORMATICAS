@@ -289,7 +289,7 @@ function similitud(a, b) {
   return comunes / Math.max(ta.size, tb.size, 1);
 }
 
-function buscarEquivalenteXimaro(nombre) {
+function buscarEquivalenteSinMinimo(nombre) {
   const indice = window.CATALOGO_INDEX || [];
   return indice
     .filter(p => !p.reqMin)
@@ -299,20 +299,20 @@ function buscarEquivalenteXimaro(nombre) {
     .slice(0, 3);
 }
 
-function buscarProductosDAZ() {
-  const q = document.getElementById("dazSearch").value.toLowerCase().trim();
+function buscarProductosMin() {
+  const q = document.getElementById("minSearch").value.toLowerCase().trim();
   const indice = window.CATALOGO_INDEX || [];
   const results = indice
     .filter(p => p.reqMin && (!q || p.name.toLowerCase().includes(q)))
     .slice(0, 8);
-  renderSugResults(results, "dazSearchResults");
+  renderSugResults(results, "minSearchResults");
 }
 
 function renderSugCard(p, contenedor) {
   const div = document.createElement("div");
   div.className = "sug-card";
   div.innerHTML = `
-    ${p.imgUrl ? `<img src="${p.imgUrl}" alt="${p.name}" onerror="this.style.display='none'">` : `<div style="width:44px;height:44px;background:#eee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>`}
+    ${p.imgUrl ? `<img src="${p.imgUrl}" alt="${p.name}" onerror="imgFallback(this)"><div class="no-img" style="display:none;width:44px;height:44px;background:#f5f5f7;border-radius:6px"></div>` : `<div class="no-img" style="width:44px;height:44px;background:#f5f5f7;border-radius:6px"></div>`}
     <div class="sug-card-info">
       <div class="sug-card-name">${p.name}</div>
       <div class="sug-card-precio">${fmt(p.precio)}</div>
@@ -340,7 +340,7 @@ function agregarDesdeIndice(id) {
   // Reconstruir resumen del paso 1
   construirResumen();
   // Si ya llegó al mínimo, ir directo al paso 1
-  const prob = calcularProblemaDAZ();
+  const prob = calcularProblemaMin();
   if (!prob) {
     irAStep(1);
   } else {
@@ -349,32 +349,32 @@ function agregarDesdeIndice(id) {
   }
 }
 
-function calcularProblemaDAZ() {
-  const itemsDAZ = cart.filter(i => i.reqMin);
-  if (!itemsDAZ.length) return null;
-  const totalBaseDAZ = itemsDAZ.reduce((s,i) => s + (parseFloat(i.baseUnits||0) * i.qty), 0);
+function calcularProblemaMin() {
+  const itemsMin = cart.filter(i => i.reqMin);
+  if (!itemsMin.length) return null;
+  const totalBaseMin = itemsMin.reduce((s,i) => s + (parseFloat(i.baseUnits||0) * i.qty), 0);
   const minimo = 1000; // unidades relativas
-  if (totalBaseDAZ >= minimo) return null;
-  const falta = minimo - totalBaseDAZ;
-  return { itemsDAZ, totalBaseDAZ, falta, minimo };
+  if (totalBaseMin >= minimo) return null;
+  const falta = minimo - totalBaseMin;
+  return { itemsMin, totalBaseMin, falta, minimo };
 }
 
 function mostrarPaso0() {
-  const prob = calcularProblemaDAZ();
+  const prob = calcularProblemaMin();
   if (!prob) { irAStep(1); return; }
 
   // Construir advertencia
-  const { itemsDAZ, totalBaseDAZ, falta } = prob;
-  const warnEl = document.getElementById("dazWarningText");
+  const { itemsMin, totalBaseMin, falta } = prob;
+  const warnEl = document.getElementById("minWarningText");
   warnEl.innerHTML = `Algunos artículos de tu pedido requieren un mínimo de compra combinado.<br>
     <strong>Te faltan ${fmt(falta)} en artículos de esta línea</strong> para poder procesar el pedido.<br>
     Podés agregar más artículos o ver alternativas disponibles desde 1 unidad.`;
 
-  // Sugerencias por producto DAZ
-  const sugEl = document.getElementById("dazSugerencias");
+  // Sugerencias de productos que completan el minimo
+  const sugEl = document.getElementById("minSugerencias");
   sugEl.innerHTML = "";
-  itemsDAZ.forEach(item => {
-    const equiv = buscarEquivalenteXimaro(item.name);
+  itemsMin.forEach(item => {
+    const equiv = buscarEquivalenteSinMinimo(item.name);
     if (equiv.length) {
       const sec = document.createElement("div");
       sec.innerHTML = `<div style="font-size:11px;font-weight:700;color:#555;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px">Alternativa disponible para "${item.name}"</div>`;
@@ -383,18 +383,18 @@ function mostrarPaso0() {
     }
   });
 
-  // Buscador de productos para completar mínimo DAZ
-  const buscEl = document.getElementById("dazBuscador");
+  // Buscador para completar el minimo de compra combinada
+  const buscEl = document.getElementById("minBuscador");
   buscEl.style.display = "flex";
   // Limpiar label anterior antes de agregar uno nuevo
-  const labelAnterior = buscEl.querySelector(".daz-label");
+  const labelAnterior = buscEl.querySelector(".min-label");
   if (labelAnterior) labelAnterior.remove();
   const label = document.createElement("div");
-  label.className = "daz-label";
+  label.className = "min-label";
   label.style = "font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px";
   label.textContent = "O agregá más artículos de esta línea";
   buscEl.insertBefore(label, buscEl.firstChild);
-  buscarProductosDAZ();
+  buscarProductosMin();
 
   // Mostrar el paso 0
   document.querySelectorAll(".checkout-section").forEach(s => s.classList.remove("visible"));
@@ -427,8 +427,8 @@ function abrirCheckout() {
   const mpPagado = document.getElementById("mpPagado");
   if (mpPagado) mpPagado.style.display = "none";
 
-  // Verificar mínimo DAZ antes de continuar
-  const prob = calcularProblemaDAZ();
+  // Verificar minimo de compra combinada antes de continuar
+  const prob = calcularProblemaMin();
   if (prob) {
     mostrarPaso0();
   } else {
@@ -436,7 +436,7 @@ function abrirCheckout() {
   }
 }
 
-document.getElementById("btnIgnorarDAZ").addEventListener("click", () => irAStep(1));
+document.getElementById("btnIgnorarMin").addEventListener("click", () => irAStep(1));
 
 function cerrarCheckout() {
   document.getElementById("checkoutModal").classList.remove("open");
@@ -945,7 +945,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   }
 });
 
-const API_URL   = "https://jrrailway-production.up.railway.app/pedido";
+const API_URL   = "https://www.jrshop.site/pedido";
 const API_TOKEN = "jrsoluciones2025";
 
 async function registrarEnSheets(filas) {
@@ -1080,77 +1080,60 @@ function filtrar() {
   const secRecientes  = document.getElementById("sec-recientes");
   const secDestacados = document.getElementById("sec-destacados");
   const secNovedades  = document.querySelector(".novedades-wrap");
-  const allSec = Array.from(document.querySelectorAll("[data-section]"));
-  const esTodos = catActiva === "Todos" && !q;
+  const grid          = document.getElementById("gridPrincipal");
+  const titulo        = document.getElementById("tituloGrilla");
+  const contador      = document.getElementById("contadorGrilla");
+  const esTodos       = catActiva === "Todos" && !q;
 
-  // Novedades y destacados solo visibles en vista principal
+  // Novedades y destacados: solo en la vista principal sin filtros
   if (secNovedades)  secNovedades.style.display  = esTodos ? "" : "none";
-  if (secDestacados) secDestacados.style.display  = esTodos ? "" : "none";
+  if (secDestacados) secDestacados.style.display = esTodos ? "" : "none";
 
-  if (esTodos && _sortActual === "novedad") {
-    allSec.forEach(sec => {
-      const cat = sec.dataset.cat || "";
-      if (cat === "Todos" || cat === "Destacados") sec.style.display = "";
-      else sec.style.display = "none";
-    });
-    noResults.style.display = "none";
-    return;
+  if (!grid) return;
+  if (secRecientes) secRecientes.style.display = "";
+
+  // Filtrar las cards (una sola grilla, sin duplicados)
+  const cards = grid.children;
+  let visible = 0;
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    const cat  = card.dataset.cat || "";
+    let mostrar = (catActiva === "Todos" || cat === catActiva);
+    if (mostrar && q) {
+      const nombre = (card.querySelector(".card-name")?.textContent || "").toLowerCase();
+      mostrar = nombre.includes(q);
+    }
+    card.classList.toggle("hidden", !mostrar);
+    if (mostrar) visible++;
   }
 
-  if (secRecientes) secRecientes.style.display = "none";
-  let visible = 0;
+  // Encabezado según el filtro activo
+  if (titulo) {
+    const base = catActiva === "Todos" ? "Todos los productos" : catActiva;
+    titulo.childNodes[0].nodeValue = q ? ('Resultados para "' + q + '" ') : (base + " ");
+  }
+  if (contador) contador.textContent = "(" + visible + ")";
 
-  // Función para ordenar las cards dentro de un grid
-  function sortGrid(grid) {
-    const cards = Array.from(grid.querySelectorAll(".card:not(.hidden)"));
-    if (_sortActual === "novedad" || cards.length < 2) return;
-    cards.sort(function(a, b) {
-      const getPrice = function(c) {
-        const txt = c.querySelector(".card-price")?.textContent || "0";
-        return parseFloat(txt.replace(/[^0-9.]/g,"")) || 0;
-      };
-      const getNombre = function(c) {
-        return c.querySelector(".card-name")?.textContent || "";
-      };
-      if (_sortActual === "precio-asc")  return getPrice(a) - getPrice(b);
-      if (_sortActual === "precio-desc") return getPrice(b) - getPrice(a);
-      if (_sortActual === "nombre")      return getNombre(a).localeCompare(getNombre(b));
+  // Ordenar solo lo visible
+  if (_sortActual !== "novedad" && visible > 1) {
+    const visibles = Array.from(cards).filter(c => !c.classList.contains("hidden"));
+    const precio = c => {
+      const t = c.querySelector(".card-price")?.textContent || "0";
+      return parseFloat(t.replace(/[^0-9]/g, "")) || 0;
+    };
+    const nombre = c => c.querySelector(".card-name")?.textContent || "";
+    visibles.sort((a, b) => {
+      if (_sortActual === "precio-asc")  return precio(a) - precio(b);
+      if (_sortActual === "precio-desc") return precio(b) - precio(a);
+      if (_sortActual === "nombre")      return nombre(a).localeCompare(nombre(b));
       return 0;
     });
-    cards.forEach(function(c){ grid.appendChild(c); });
+    const frag = document.createDocumentFragment();
+    visibles.forEach(c => frag.appendChild(c));
+    grid.appendChild(frag);
   }
 
-  allSec.forEach(sec => {
-    const cat = sec.dataset.cat || "";
-    if (cat === "Todos" || cat === "Destacados") { sec.style.display = "none"; return; }
-    if (catActiva !== "Todos" && cat !== catActiva) { sec.style.display = "none"; return; }
-    sec.style.display = "";
-    const cards = sec.querySelectorAll(".card");
-    let n = 0;
-    cards.forEach(card => {
-      const name = card.querySelector(".card-name")?.textContent.toLowerCase() || "";
-      const show = !q || name.includes(q);
-      card.classList.toggle("hidden", !show);
-      if (show) { visible++; n++; }
-    });
-    if (n === 0) { sec.style.display = "none"; return; }
-    sortGrid(sec.querySelector(".grid"));
-  });
-
-  if ((q || _sortActual !== "novedad") && catActiva === "Todos" && secRecientes) {
-    secRecientes.style.display = "";
-    const cards = secRecientes.querySelectorAll(".card");
-    let n = 0;
-    cards.forEach(card => {
-      const name = card.querySelector(".card-name")?.textContent.toLowerCase() || "";
-      const show = !q || name.includes(q);
-      card.classList.toggle("hidden", !show);
-      if (show) { visible++; n++; }
-    });
-    if (n === 0) secRecientes.style.display = "none";
-    else sortGrid(secRecientes.querySelector(".grid"));
-  }
-
+  if (secRecientes) secRecientes.style.display = visible === 0 ? "none" : "";
   noResults.style.display = visible === 0 ? "block" : "none";
 }
 
@@ -1194,6 +1177,13 @@ var _sortActual = "novedad";
   slider.addEventListener("mouseleave", arrancar);
   arrancar();
 })();
+
+// Si una imagen no carga, muestra el placeholder que va al lado
+function imgFallback(el) {
+  el.style.display = "none";
+  var ph = el.nextElementSibling;
+  if (ph && ph.classList.contains("no-img")) ph.style.display = "flex";
+}
 
 function toggleCart() {
   var p = document.getElementById("cartPanel");
@@ -1279,7 +1269,7 @@ btnTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smoo
 // Más vistos
 const MV_KEY     = "jrMasVistos";
 const MV_MOSTRAR = 8;
-const API_MV     = "https://jrrailway-production.up.railway.app";
+const API_MV     = "https://www.jrshop.site";
 
 function getMasVistos() {
   try { return JSON.parse(sessionStorage.getItem(MV_KEY)||"{}"); } catch { return {}; }
@@ -1416,9 +1406,10 @@ function abrirProducto(dataStr) {
       : '';
   }
   document.getElementById("prodDesc").innerHTML = '<div class="prod-desc-loading">Generando descripción...</div>';
-  // Usar descripción pre-generada si existe, sino generar con IA
-  if (p.descripcion) {
-    document.getElementById("prodDesc").textContent = p.descripcion;
+  // La descripcion viene del mapa global, no dentro de cada card
+  var descGuardada = p.descripcion || (window.DESCRIPCIONES || {})[p.id];
+  if (descGuardada) {
+    document.getElementById("prodDesc").textContent = descGuardada;
   } else {
     fetchDescripcion("", "", p.name);
   }
@@ -1455,7 +1446,7 @@ function abrirProducto(dataStr) {
 
   var btnShare = document.getElementById("prodBtnShare");
   if (btnShare) {
-    var linkProd = "https://jrrailway-production.up.railway.app/p/" + p.id;
+    var linkProd = "https://www.jrshop.site/p/" + p.id;
     btnShare.href = "https://wa.me/?text=" + encodeURIComponent(
       limpiarTextoCliente(p.name) + "\n" + precioTexto + " con transferencia\n" + linkProd
     );
@@ -1511,7 +1502,7 @@ async function fetchDescripcion(href, fuente, nombreProducto) {
   if (cached) { descEl.textContent = cached; return; }
 
   try {
-    var res = await fetch("https://jrrailway-production.up.railway.app/descripcion", {
+    var res = await fetch("https://www.jrshop.site/descripcion", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
       body: JSON.stringify({ producto: nombreProducto })
@@ -1763,7 +1754,10 @@ function renderDestacados() {
       : (vistas >= 5 ? '<span class="badge-vistas">' + vistas + ' vistas</span>' : '');
     return '<div class="card" data-prod="' + b64 + '" onclick="abrirProductoCard(this)" style="cursor:pointer">'
       + '<div class="card-img">'
-      + (p.imgUrl ? '<img src="' + p.imgUrl + '" alt="' + p.name + '" loading="lazy" referrerpolicy="no-referrer">' : '<div class="no-img">📦</div>')
+      + (p.imgUrl
+          ? '<img src="' + p.imgUrl + '" alt="' + p.name + '" loading="lazy" referrerpolicy="no-referrer" onerror="imgFallback(this)">'
+            + '<div class="no-img" style="display:none"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Sin foto</span></div>'
+          : '<div class="no-img"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Sin foto</span></div>')
       + badge
       + '</div>'
       + '<div class="card-body">'
@@ -1916,7 +1910,7 @@ function renderCredito() {
     var r   = calcCredito(creditoPrecio, creditoAntPct, creditoCuotasSel);
 
     // Guardar en Sheets via Railway
-    fetch("https://jrrailway-production.up.railway.app/solicitud-credito", {
+    fetch("https://www.jrshop.site/solicitud-credito", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
       body: JSON.stringify({
@@ -2036,7 +2030,7 @@ if (!localStorage.getItem(AYUDA_KEY)) {
 })();
 
 // ── Social proof ──────────────────────────────────────────────────────────────
-var API_SP   = "https://jrrailway-production.up.railway.app";
+var API_SP   = "https://www.jrshop.site";
 var NOMBRES  = ["Rodrigo","Valentina","Lucas","Camila","Martin","Sofia","Agustin","Lucia","Santiago","Florencia","Tomas","Julieta","Mateo","Micaela","Facundo"];
 var CIUDADES = ["Tucuman","Salta","Cordoba","Buenos Aires","Mendoza","Rosario","La Plata","Jujuy","Catamarca","Santiago del Estero"];
 

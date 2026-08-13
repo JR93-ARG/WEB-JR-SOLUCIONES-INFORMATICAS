@@ -373,7 +373,8 @@ main{max-width:1400px;margin:0 auto;padding:0 20px 120px}
 }
 .card-img img{width:100%;height:100%;object-fit:contain;transition:transform .3s}
 .card:hover .card-img img{transform:scale(1.05)}
-.no-img{font-size:40px;color:#e2e0ea}
+.no-img{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#c9c6d4;font-size:10px;width:100%;height:100%}
+.no-img span{font-size:9px;letter-spacing:.3px}
 .badge-nuevo{
   position:absolute;top:10px;left:10px;background:var(--marca-2);color:#fff;
   font-size:9px;font-weight:800;padding:4px 9px;border-radius:5px;
