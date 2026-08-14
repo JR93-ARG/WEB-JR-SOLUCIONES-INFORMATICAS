@@ -1,6 +1,16 @@
 
 const CART_PHONE = "543812235528";
 
+// Escapa texto antes de insertarlo como HTML.
+// Los nombres de producto vienen de sitios externos: si uno trae
+// "<img onerror=...>" e se inyecta con innerHTML, se ejecuta en el navegador.
+function escHtml(t) {
+  return String(t == null ? "" : t)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+
 const ZONAS = {
   tucuman_capital:  { nombre: "Tucumán capital (SMT / Tafí Viejo / Yerba Buena)", zona: 1, costoBase: 2500,  freeDesde: 15000,  kmExtra: 300  },
   tucuman_interior: { nombre: "Tucumán — interior de la provincia",                zona: 2, costoBase: 10000, freeDesde: 50000,  kmExtra: null },
@@ -377,7 +387,7 @@ function mostrarPaso0() {
     const equiv = buscarEquivalenteSinMinimo(item.name);
     if (equiv.length) {
       const sec = document.createElement("div");
-      sec.innerHTML = `<div style="font-size:11px;font-weight:700;color:#555;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px">Alternativa disponible para "${item.name}"</div>`;
+      sec.innerHTML = `<div style="font-size:11px;font-weight:700;color:#555;margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px">Alternativa disponible para "${escHtml(item.name)}"</div>`;
       sugEl.appendChild(sec);
       equiv.forEach(p => renderSugCard(p, sugEl.id));
     }
