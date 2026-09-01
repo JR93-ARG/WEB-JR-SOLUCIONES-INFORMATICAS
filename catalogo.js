@@ -956,7 +956,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 });
 
 const API_URL   = "https://www.jrshop.site/pedido";
-const API_TOKEN = "jrsoluciones2025";
+// El token de la API no va en el JS publico: seria visible para cualquiera.
 
 async function registrarEnSheets(filas) {
   try {
@@ -1291,7 +1291,7 @@ function registrarVista(id, nombre, precio, imagen) {
   sessionStorage.setItem(MV_KEY, JSON.stringify(mv));
   fetch(API_MV + "/vista", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, nombre: nombre||"", precio: precio||"", imagen: imagen||"" })
   }).catch(() => {});
   renderMasVistos();
@@ -1302,17 +1302,9 @@ function fmtMV(v) { return "$ " + Math.round(v).toLocaleString("es-AR"); }
 
 function renderMasVistos() { /* removida */ }
 
-fetch(API_MV + "/vistas-top", {
-  headers: { "X-API-Token": "jrsoluciones2025" }
-}).then(r=>r.json()).then(data => {
-  if (data.ok && data.vistas) {
-    const mv = getMasVistos();
-    data.vistas.forEach(function(v) { mv[v.id] = Math.max(mv[v.id]||0, v.count); });
-    sessionStorage.setItem(MV_KEY, JSON.stringify(mv));
-    renderMasVistos();
-    renderDestacados(); // actualizar destacados con datos reales
-  }
-}).catch(() => renderMasVistos());
+// El ranking de vistas viene embebido en window.VISTAS_TOP, generado al
+// construir el sitio. Antes se pedia a /vistas-top con el token de la API
+// escrito aca, lo que dejaba la credencial visible en el JS publico.
 
 // b64ToUtf8 se define inline en index.html antes del indice de productos.
 
@@ -1514,7 +1506,7 @@ async function fetchDescripcion(href, fuente, nombreProducto) {
   try {
     var res = await fetch("https://www.jrshop.site/descripcion", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ producto: nombreProducto })
     });
     var data = await res.json();
@@ -1562,36 +1554,127 @@ renderMasVistos();
   }, 700);
 })();
 
-// ── Día del Niño: tercer domingo de agosto (Argentina) ──
-function fechaDiaDelNino(anio) {
-  var d = new Date(anio, 7, 1);              // 1 de agosto
-  var domingos = 0;
+// ── Temporadas ───────────────────────────────────────────────────────────────
+// La seccion destacada cambia sola segun la fecha. Fuera de campaña
+// muestra los productos mas consultados, que se calculan de las vistas
+// reales del catalogo.
+
+function tercerDomingoDeAgosto(anio) {
+  var d = new Date(anio, 7, 1), dom = 0;
   while (true) {
-    if (d.getDay() === 0) { domingos++; if (domingos === 3) break; }
+    if (d.getDay() === 0) { dom++; if (dom === 3) break; }
     d.setDate(d.getDate() + 1);
   }
   return d;
 }
 
-(function() {
-  var el = document.getElementById("destSub");
-  if (!el) return;
+// Cada temporada define su ventana, titulo y como reconocer sus productos.
+var TEMPORADAS = [
+  {
+    id: "nino",
+    titulo: "Regalos para el Día del Niño",
+    emoji: "🎁",
+    badge: "Día del Niño",
+    color: "#ec4899",
+    // Arranca 30 dias antes y termina el mismo dia
+    ventana: function(hoy) {
+      var f = tercerDomingoDeAgosto(hoy.getFullYear());
+      var desde = new Date(f); desde.setDate(desde.getDate() - 30);
+      return (hoy >= desde && hoy <= f) ? f : null;
+    },
+    filtra: function(nombre) { return esProductoNino(nombre); },
+    accesible: 60000,
+  },
+  {
+    id: "navidad",
+    titulo: "Regalos para Navidad",
+    emoji: "🎄",
+    badge: "Navidad",
+    color: "#dc2626",
+    ventana: function(hoy) {
+      var f = new Date(hoy.getFullYear(), 11, 25);
+      var desde = new Date(hoy.getFullYear(), 10, 20);
+      return (hoy >= desde && hoy <= f) ? f : null;
+    },
+    filtra: function(nombre) { return esProductoNino(nombre) || esProductoRegalo(nombre); },
+    accesible: 90000,
+  },
+  {
+    id: "madre",
+    titulo: "Regalos para el Día de la Madre",
+    emoji: "💐",
+    badge: "Día de la Madre",
+    color: "#db2777",
+    ventana: function(hoy) {
+      // Tercer domingo de octubre
+      var d = new Date(hoy.getFullYear(), 9, 1), dom = 0;
+      while (true) {
+        if (d.getDay() === 0) { dom++; if (dom === 3) break; }
+        d.setDate(d.getDate() + 1);
+      }
+      var desde = new Date(d); desde.setDate(desde.getDate() - 25);
+      return (hoy >= desde && hoy <= d) ? d : null;
+    },
+    filtra: function(nombre) { return esProductoRegalo(nombre); },
+    accesible: 80000,
+  },
+  {
+    id: "padre",
+    titulo: "Regalos para el Día del Padre",
+    emoji: "👔",
+    badge: "Día del Padre",
+    color: "#1d4ed8",
+    ventana: function(hoy) {
+      // Tercer domingo de junio
+      var d = new Date(hoy.getFullYear(), 5, 1), dom = 0;
+      while (true) {
+        if (d.getDay() === 0) { dom++; if (dom === 3) break; }
+        d.setDate(d.getDate() + 1);
+      }
+      var desde = new Date(d); desde.setDate(desde.getDate() - 25);
+      return (hoy >= desde && hoy <= d) ? d : null;
+    },
+    filtra: function(nombre) { return esProductoRegalo(nombre); },
+    accesible: 80000,
+  },
+];
+
+// Temporada activa hoy, o null si no hay ninguna
+function temporadaActiva() {
   var hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  var fecha = fechaDiaDelNino(hoy.getFullYear());
-  if (fecha < hoy) fecha = fechaDiaDelNino(hoy.getFullYear() + 1);
+  for (var i = 0; i < TEMPORADAS.length; i++) {
+    var f = TEMPORADAS[i].ventana(hoy);
+    if (f) return { temp: TEMPORADAS[i], fecha: f, hoy: hoy };
+  }
+  return null;
+}
 
-  var dias = Math.round((fecha - hoy) / 86400000);
+// Actualiza el encabezado segun la temporada
+(function() {
+  var elTitulo = document.getElementById("destTitulo");
+  var elSub    = document.getElementById("destSub");
+  if (!elSub) return;
+
+  var act = temporadaActiva();
+  if (!act) {
+    if (elTitulo) elTitulo.textContent = "Los más consultados";
+    elSub.textContent = "Lo que más miran nuestros clientes";
+    return;
+  }
+
+  if (elTitulo) elTitulo.textContent = act.temp.emoji + "  " + act.temp.titulo;
+
+  var dias = Math.round((act.fecha - act.hoy) / 86400000);
   var MESES = ["enero","febrero","marzo","abril","mayo","junio",
                "julio","agosto","septiembre","octubre","noviembre","diciembre"];
-  var txt = "Domingo " + fecha.getDate() + " de " + MESES[fecha.getMonth()];
-
+  var txt = act.fecha.getDate() + " de " + MESES[act.fecha.getMonth()];
   if (dias === 0)      txt = "¡Es hoy! 🎉";
   else if (dias === 1) txt = "¡Mañana! · " + txt;
   else if (dias <= 30) txt = "Faltan " + dias + " días · " + txt;
-
-  el.textContent = txt;
+  elSub.textContent = txt;
 })();
+
 
 // ── Destacados dinámicos — Día del Niño ──────────────────────────────────────
 
@@ -1683,6 +1766,26 @@ function contienePalabra(texto, lista) {
   return false;
 }
 
+// Regalos para adultos: electronica, hogar, belleza, herramientas de regalo
+var PALABRAS_REGALO = [
+  "auricular","auriculares","parlante","parlantes","smartwatch","reloj","relojes",
+  "celular","celulares","smartphone","tablet","tablets","notebook","teclado","mouse",
+  "cafetera","pava","termo","mate","mates","bombilla","vinoteca","copa","copas",
+  "licuadora","batidora","tostadora","sandwichera","freidora","procesadora","waflera",
+  "perfume","perfumes","secador","planchita","buclera","afeitadora","masajeador",
+  "aspiradora","ventilador","purificador","humidificador","lampara","velador",
+  "manta","almohada","acolchado","sabanas","toallon","bata","pantuflas",
+  "taladro","atornillador","amoladora","herramienta","herramientas","caja",
+  "bicicleta","monopatin","mochila","valija","cartera","billetera","riñonera",
+  "camara","proyector","luces","led","ring","aro","tripode",
+];
+
+function esProductoRegalo(nombre) {
+  var n = " " + normalizarNombre(nombre) + " ";
+  if (contienePalabra(n, EXCLUIR_DURO)) return false;
+  return contienePalabra(n, PALABRAS_REGALO);
+}
+
 function esProductoNino(nombre) {
   var n = " " + normalizarNombre(nombre) + " ";
   // 1. Rubros que nunca son regalo (seguridad, vigilancia, etc.)
@@ -1702,108 +1805,121 @@ function renderDestacados() {
   var idx = window.CATALOGO_INDEX || [];
   if (!idx.length) return;
 
+  // Vistas reales del catalogo (se acumulan al abrir cada producto)
   var mv = {};
-  try { mv = JSON.parse(sessionStorage.getItem("jrMasVistos")||"{}"); } catch(e){}
+  try { mv = JSON.parse(sessionStorage.getItem("jrMasVistos") || "{}"); } catch(e) {}
+  // Ranking del servidor: refleja lo que miran TODOS los visitantes
+  var topServidor = window.VISTAS_TOP || {};
 
-  var maxPrecio = Math.max.apply(null, idx.map(function(p){ return p.precio||0; }));
+  var act = temporadaActiva();
+  var LIMITE = 10;
+  var seleccion, badgeTexto = null, badgeColor = null;
 
-  // Primero productos para chicos, priorizando precio accesible y vistas
-  var infantiles = idx
-    .filter(function(p){ return p.precio > 0 && esProductoNino(p.name); })
-    .map(function(p) {
-      var vistas = mv[p.id] || 0;
-      var pctP   = maxPrecio > 0 ? (p.precio / maxPrecio) : 0;
-      // para regalos se premia el precio accesible, no el mas caro
-      var accesible = p.precio <= 60000 ? 3 : p.precio <= 120000 ? 1.5 : 0;
-      return { p: p, score: vistas * 3 + accesible + pctP + 10 };
-    })
-    .sort(function(a,b){ return b.score - a.score; })
-    .slice(0, 6)
-    .map(function(x){ return x.p; });
-
-  // Completar con los más vistos generales si hay menos de 8
-  var resto = idx
-    .filter(function(p){
-      return p.precio > 0 && !esProductoNino(p.name) &&
-             !infantiles.find(function(m){ return m.id === p.id; });
-    })
-    .map(function(p) {
-      var vistas = mv[p.id] || 0;
-      var pctP   = maxPrecio > 0 ? (p.precio / maxPrecio) : 0;
-      return { p: p, score: vistas * 3 + pctP * 2 };
-    })
-    .sort(function(a,b){ return b.score - a.score; })
-    .slice(0, 8 - infantiles.length)
-    .map(function(x){ return x.p; });
-
-  // Si no hay nada infantil, fallback a los más vendidos
-  var scored = infantiles.concat(resto);
-  if (!scored.length) {
-    scored = idx
-      .filter(function(p){ return p.precio > 0; })
-      .sort(function(a,b){ return b.precio - a.precio; })
-      .slice(0, 8);
+  function vistasDe(p) {
+    return (topServidor[p.id] || 0) * 5 + (mv[p.id] || 0) * 3;
   }
 
-  grid.innerHTML = scored.map(function(p) {
+  if (act) {
+    // ── Temporada activa: productos del rubro, priorizando precio accesible ──
+    badgeTexto = act.temp.emoji + " " + act.temp.badge;
+    badgeColor = act.temp.color;
+    var tope = act.temp.accesible || 60000;
+
+    var deTemporada = idx
+      .filter(function(p) { return p.precio > 0 && act.temp.filtra(p.name); })
+      .map(function(p) {
+        var barato = p.precio <= tope ? 3 : p.precio <= tope * 2 ? 1.5 : 0;
+        return { p: p, score: vistasDe(p) + barato + 10 };
+      })
+      .sort(function(a, b) { return b.score - a.score; })
+      .slice(0, LIMITE)
+      .map(function(x) { return x.p; });
+
+    // Completar con los mas vistos si no alcanzan
+    var resto = idx
+      .filter(function(p) {
+        return p.precio > 0 && !deTemporada.some(function(d) { return d.id === p.id; });
+      })
+      .map(function(p) { return { p: p, score: vistasDe(p) }; })
+      .sort(function(a, b) { return b.score - a.score; })
+      .slice(0, LIMITE - deTemporada.length)
+      .map(function(x) { return x.p; });
+
+    seleccion = deTemporada.concat(resto);
+
+  } else {
+    // ── Sin temporada: los mas consultados ──
+    seleccion = idx
+      .filter(function(p) { return p.precio > 0; })
+      .map(function(p) { return { p: p, vistas: vistasDe(p) }; })
+      .filter(function(x) { return x.vistas > 0; })
+      .sort(function(a, b) { return b.vistas - a.vistas; })
+      .slice(0, LIMITE)
+      .map(function(x) { return x.p; });
+
+    // Si todavia no hay vistas, mostrar novedades para no dejarlo vacio
+    if (seleccion.length < 4) {
+      var yaEstan = {};
+      seleccion.forEach(function(p) { yaEstan[p.id] = 1; });
+      var extra = idx
+        .filter(function(p) { return p.precio > 0 && !yaEstan[p.id]; })
+        .slice(0, LIMITE - seleccion.length);
+      seleccion = seleccion.concat(extra);
+    }
+  }
+
+  if (!seleccion.length) return;
+
+  grid.innerHTML = seleccion.map(function(p, i) {
     var precioCatalogo = p.precio;
     var pctInd = precioCatalogo <= 20000  ? 5
                : precioCatalogo <= 50000  ? 10
                : precioCatalogo <= 100000 ? 15
                : precioCatalogo <= 200000 ? 18 : 20;
-    var precioConDesc = Math.round(precioCatalogo * (1 - pctInd/100));
+    var precioConDesc = Math.round(precioCatalogo * (1 - pctInd / 100));
     var b64 = btoa(unescape(encodeURIComponent(JSON.stringify({
       id: p.id, name: p.name, imgUrl: p.imgUrl,
       precioCatalogo: precioCatalogo, precioConDesc: precioConDesc,
       pctIndTexto: pctInd, reqMin: p.reqMin, baseUnits: p.baseUnits, pv: p.pv
     }))));
-    var vistas = mv[p.id] || 0;
-    var esNino = esProductoNino(p.name);
-    var badge = esNino
-      ? '<span class="badge-nino">🎁 Día del Niño</span>'
-      : (vistas >= 5 ? '<span class="badge-vistas">' + vistas + ' vistas</span>' : '');
-    return '<div class="card" data-prod="' + b64 + '" onclick="abrirProductoCard(this)" style="cursor:pointer">'
+
+    var badge = "";
+    if (badgeTexto && act.temp.filtra(p.name)) {
+      badge = '<span class="badge-temp" style="background:' + badgeColor + '">'
+            + escHtml(badgeTexto) + '</span>';
+    } else if (!act && i < 3) {
+      badge = '<span class="badge-top">#' + (i + 1) + ' más visto</span>';
+    }
+
+    var cuota = precioCatalogo >= 50000
+      ? '<span class="card-cuotas">6 cuotas de ' + fmtMV(Math.round(precioCatalogo / 6)) + '</span>'
+      : '';
+
+    return '<div class="card" data-prod="' + b64 + '" data-cat="' + escHtml(p.categoria || "") + '" onclick="abrirProductoCard(this)" style="cursor:pointer">'
       + '<div class="card-img">'
       + (p.imgUrl
-          ? '<img src="' + p.imgUrl + '" alt="' + p.name + '" loading="lazy" referrerpolicy="no-referrer" onerror="imgFallback(this)">'
+          ? '<img src="' + escHtml(p.imgUrl) + '" alt="' + escHtml(p.name) + '" loading="lazy" referrerpolicy="no-referrer" onerror="imgFallback(this)">'
             + '<div class="no-img" style="display:none"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Sin foto</span></div>'
           : '<div class="no-img"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Sin foto</span></div>')
       + badge
       + '</div>'
       + '<div class="card-body">'
-      + '<p class="card-name">' + limpiarTextoCliente(p.name) + '</p>'
+      + '<p class="card-name">' + escHtml(limpiarTextoCliente(p.name)) + '</p>'
       + '<p class="card-price-mp"><s>' + fmtMV(precioCatalogo) + '</s></p>'
       + '<p class="card-price">' + fmtMV(precioConDesc) + '</p>'
       + '<span class="card-badge-desc">' + pctInd + '% off con transferencia</span>'
+      + cuota
       + '<div class="card-actions" onclick="event.stopPropagation()">'
-
-+ '<button class="buy-btn" onclick="comprarAhora(this)"'
-+ ' data-id="' + p.id + '"'
-+ ' data-name="' + p.name + '"'
-+ ' data-price="' + precioCatalogo + '"'
-+ ' data-req-min="' + (p.reqMin||0) + '"'
-+ ' data-base-units="' + (p.baseUnits||0) + '"'
-+ ' data-pv="' + (p.pv||'') + '">'
-+ 'Comprar'
-+ '</button>'
-
-+ '<button class="add-btn" onclick="addToCartFromBtn(this)"'
-+ ' data-id="' + p.id + '"'
-+ ' data-name="' + p.name + '"'
-+ ' data-price="' + precioCatalogo + '"'
-+ ' data-req-min="' + (p.reqMin||0) + '"'
-+ ' data-base-units="' + (p.baseUnits||0) + '"'
-+ ' data-pv="' + (p.pv||'') + '"'
-+ ' title="Agregar al carrito">'
-
-+ '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">'
-+ '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>'
-+ '</svg>'
-
-+ '</button>'
-+ '</div>'
-+ '</div>'
-+ '</div>';
+      + '<button class="buy-btn" onclick="comprarAhora(this)"'
+      + ' data-id="' + escHtml(p.id) + '" data-name="' + escHtml(p.name) + '" data-price="' + precioCatalogo + '"'
+      + ' data-req-min="' + (p.reqMin || 0) + '" data-base-units="' + (p.baseUnits || 0) + '" data-pv="' + (p.pv || '') + '">'
+      + 'Comprar</button>'
+      + '<button class="add-btn" onclick="addToCartFromBtn(this)"'
+      + ' data-id="' + escHtml(p.id) + '" data-name="' + escHtml(p.name) + '" data-price="' + precioCatalogo + '"'
+      + ' data-req-min="' + (p.reqMin || 0) + '" data-base-units="' + (p.baseUnits || 0) + '" data-pv="' + (p.pv || '') + '"'
+      + ' title="Agregar al carrito">'
+      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>'
+      + '</button></div></div></div>';
   }).join("");
 }
 
@@ -1922,7 +2038,7 @@ function renderCredito() {
     // Guardar en Sheets via Railway
     fetch("https://www.jrshop.site/solicitud-credito", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Token": "jrsoluciones2025" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         nombre: nombre, dni: dni, telefono: tel,
         domicilio: domicilio, barrio: barrio, trabajo: trabajo,

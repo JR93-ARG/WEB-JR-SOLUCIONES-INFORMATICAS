@@ -402,6 +402,16 @@ main{max-width:1400px;margin:0 auto;padding:0 20px 120px}
 .badge-stock-medio{background:#fef9c3;color:#854d0e}
 .badge-stock-bajo{background:#fee2e2;color:#991b1b;font-weight:700}
 .badge-stock-agotado{background:#f1f5f9;color:#64748b}
+.badge-temp{
+  position:absolute;top:10px;left:10px;color:#fff;
+  font-size:9px;font-weight:800;padding:4px 9px;border-radius:5px;
+  letter-spacing:.3px;
+}
+.badge-top{
+  position:absolute;top:10px;left:10px;background:var(--tinta);color:#fff;
+  font-size:9px;font-weight:800;padding:4px 9px;border-radius:5px;
+  letter-spacing:.3px;
+}
 .badge-nino{
   position:absolute;top:10px;left:10px;background:#ec4899;color:#fff;
   font-size:9px;font-weight:800;padding:4px 9px;border-radius:5px;
