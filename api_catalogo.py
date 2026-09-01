@@ -36,6 +36,16 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Methods"]     = "GET, POST, PATCH, OPTIONS"
     response.headers["Access-Control-Allow-Headers"]     = "Content-Type, X-API-Token"
     response.headers["Access-Control-Allow-Credentials"] = "false"
+
+    # ── Headers de seguridad ──
+    # nosniff: evita que el navegador adivine el tipo y ejecute algo como script
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # DENY: impide que el sitio se embeba en un iframe (clickjacking)
+    response.headers["X-Frame-Options"]        = "DENY"
+    # No filtrar la URL completa al navegar a sitios externos
+    response.headers["Referrer-Policy"]        = "strict-origin-when-cross-origin"
+    # HTTPS obligatorio por un año
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 @app.route("/", defaults={"path": ""}, methods=["OPTIONS"])
@@ -43,11 +53,33 @@ def add_cors(response):
 def handle_options(path):
     return jsonify({}), 200
 
-API_TOKEN          = "jrsoluciones2025"
+# El token puede definirse por entorno (recomendado). Si no está,
+# usa el valor de siempre para no romper lo que ya está instalado.
+API_TOKEN          = os.environ.get("API_TOKEN") or "jrsoluciones2025"
 RATE_LIMIT_MAX     = 10
 RATE_LIMIT_VENTANA = 3600
 _rate_store        = defaultdict(list)
 _rate_store_vistas = defaultdict(list)
+
+def error_interno(e, contexto=""):
+    """
+    Registra el error completo en el log del servidor y devuelve al cliente
+    un mensaje genérico. El detalle puede incluir nombres de tablas, rutas
+    internas o el host de la base, que no deben salir en la respuesta.
+    """
+    print(f"[ERROR]{' ' + contexto if contexto else ''}: {e}")
+    return jsonify({"ok": False, "error": "Error interno del servidor"}), 500
+
+
+def token_valido(recibido):
+    """
+    Compara el token en tiempo constante.
+    Con '!=' la comparación corta en el primer byte distinto, y midiendo
+    tiempos de respuesta se puede deducir el token carácter por carácter.
+    """
+    import hmac
+    return hmac.compare_digest(str(recibido or ""), API_TOKEN)
+
 
 def check_rate_limit(ip, store=None, max_req=None, ventana=None):
     if store is None: store = _rate_store
@@ -90,7 +122,7 @@ def recibir_pedido():
         return jsonify({"ok": False, "error": "Demasiadas solicitudes. Intentá en unos minutos."}), 429
 
     token = request.headers.get("X-API-Token", "")
-    if token != API_TOKEN:
+    if not token_valido(token):
         return jsonify({"ok": False, "error": "No autorizado"}), 401
 
     try:
@@ -159,7 +191,7 @@ def listar_pedidos():
         pedidos = gs.obtener_pedidos_web()
         return jsonify({"ok": True, "total": len(pedidos), "pedidos": pedidos})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return error_interno(e)
 
 @app.route("/pedido/<nro>/estado", methods=["PATCH"])
 def cambiar_estado(nro):
@@ -177,17 +209,17 @@ def cambiar_estado(nro):
         ok = gs.actualizar_estado_pedido_web(nro, nuevo, user)
         return jsonify({"ok": ok})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return error_interno(e)
 
 # ── Vistas de productos ────────────────────────────────────────────────────────
 @app.route("/vista", methods=["POST"])
 def registrar_vista():
     ip = get_ip()
+    # Contador publico de vistas: lo llama el catalogo desde el navegador.
+    # No lleva token porque cualquier credencial en JS publico queda expuesta.
+    # La proteccion real es el rate limit por IP.
     if check_rate_limit("vista_" + ip, store=_rate_store_vistas, max_req=100):
         return jsonify({"ok": False}), 429
-    token = request.headers.get("X-API-Token", "")
-    if token != API_TOKEN:
-        return jsonify({"ok": False}), 401
     try:
         datos   = request.get_json(force=True, silent=True) or {}
         id_prod = sanitizar(datos.get("id", ""), 200)
@@ -199,7 +231,7 @@ def registrar_vista():
         gs.registrar_vista_producto(id_prod, nombre, precio, imagen)
         return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return error_interno(e)
 
 # ── Visitas totales de la página ──────────────────────────────────────────────
 _sesiones      = {}        # {ip: timestamp} — solo en memoria (está bien)
@@ -252,7 +284,7 @@ def stats_pagina():
 @app.route("/vistas-top", methods=["GET"])
 def vistas_top():
     token = request.headers.get("X-API-Token", "")
-    if token != API_TOKEN:
+    if not token_valido(token):
         return jsonify({"ok": False}), 401
     try:
         top = gs.obtener_vistas_top(20)
@@ -263,7 +295,7 @@ def vistas_top():
 @app.route("/sincronizar-indice", methods=["POST"])
 def sincronizar_indice():
     token = request.headers.get("X-API-Token", "")
-    if token != API_TOKEN:
+    if not token_valido(token):
         return jsonify({"ok": False}), 401
     try:
         datos     = request.get_json(force=True, silent=True) or {}
@@ -283,7 +315,7 @@ def sincronizar_indice():
         nuevos = gs.sincronizar_indice_productos(limpios)
         return jsonify({"ok": True, "nuevos": nuevos})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return error_interno(e)
 
 @app.route("/descripcion", methods=["POST"])
 def generar_descripcion():
@@ -429,7 +461,7 @@ def solicitud_credito():
         })
         return jsonify({"ok": True, "nro": nro})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return error_interno(e)
 
 CATALOGO_URL   = "https://www.jrshop.com.ar"
 PRODUCTOS_JSON = f"{CATALOGO_URL}/productos.json"
@@ -700,7 +732,7 @@ def _disparar_actualizacion():
 def actualizar_catalogo():
     """Dispara la actualización manualmente (requiere token)."""
     token = request.headers.get("X-API-Token") or request.json and request.json.get("token")
-    if token != "jrsoluciones2025":
+    if not token_valido(token):
         return jsonify({"ok": False, "error": "No autorizado"}), 401
 
     if _actualizacion_en_curso:
@@ -715,7 +747,19 @@ def actualizar_catalogo():
 
 @app.route("/estado-actualizacion", methods=["GET"])
 def estado_actualizacion():
-    """Devuelve el estado de la última actualización."""
+    """
+    Estado de la última actualización.
+    Los logs incluyen nombres de proveedores y rutas internas, asi que el
+    detalle completo requiere token. Sin token solo se informa si hay una
+    corrida en curso.
+    """
+    token = request.headers.get("X-API-Token", "")
+    if not token_valido(token):
+        return jsonify({
+            "en_curso": _actualizacion_en_curso,
+            "ok": _ultimo_resultado.get("ok"),
+            "fecha": _ultimo_resultado.get("fecha"),
+        })
     return jsonify({
         "en_curso":       _actualizacion_en_curso,
         "ultimo_resultado": _ultimo_resultado,
