@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel — JR Shop</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --marca:#15803d; --marca-2:#16a34a; --marca-claro:#f0fdf4; --marca-borde:#bbf7d0;
+  --tinta:#1e1b30; --texto:#4b5563; --gris:#6b7280; --suave:#9ca3af;
+  --linea:#e9e7f0; --fondo:#f7f7fb; --blanco:#fff;
+  --wa:#25D366; --rojo:#dc2626; --naranja:#f59e0b; --azul:#2563eb;
+  --r:10px;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--fondo);color:var(--tinta);font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom);
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+.oculto{display:none !important}
+
+/* ── Login ── */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-caja{background:var(--blanco);border-radius:16px;padding:32px 26px;width:100%;max-width:360px;
+  box-shadow:0 4px 24px rgba(30,27,48,.08)}
+.login-logo{width:52px;height:52px;background:var(--marca);border-radius:12px;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;margin:0 auto 16px}
+.login-caja h1{font-size:19px;font-weight:700;text-align:center;margin-bottom:4px}
+.login-caja p{font-size:13px;color:var(--gris);text-align:center;margin-bottom:22px}
+.campo{margin-bottom:14px}
+.campo label{display:block;font-size:11px;font-weight:700;color:var(--gris);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.campo input{width:100%;padding:12px 14px;border:1.5px solid var(--linea);border-radius:var(--r);
+  outline:none;transition:border-color .15s;background:var(--blanco);color:var(--tinta)}
+.campo input:focus{border-color:var(--marca-2)}
+.btn{width:100%;background:var(--marca);color:#fff;border:none;padding:13px;
+  border-radius:var(--r);font-weight:700;cursor:pointer;transition:background .15s}
+.btn:hover{background:#166534}
+.btn:disabled{background:#c8c8d0;cursor:not-allowed}
+.error{background:#fef2f2;border:1px solid #fecaca;color:var(--rojo);
+  border-radius:var(--r);padding:10px 13px;font-size:13px;margin-bottom:14px}
+
+/* ── Cabecera ── */
+header{background:var(--marca);color:#fff;padding:13px 16px;position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:calc(13px + env(safe-area-inset-top))}
+.hdr-t{font-size:15px;font-weight:700}
+.hdr-s{font-size:11px;color:var(--marca-borde)}
+.hdr-btn{background:rgba(255,255,255,.14);border:none;color:#fff;width:34px;height:34px;
+  border-radius:9px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+
+/* ── Resumen ── */
+.resumen{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;padding:13px}
+.tarjeta{border-radius:var(--r);padding:12px 13px}
+.tarjeta .n{font-size:23px;font-weight:800;line-height:1.1}
+.tarjeta .l{font-size:11px;margin-top:2px}
+.t-amarillo{background:#fef9c3}.t-amarillo .n,.t-amarillo .l{color:#854d0e}
+.t-verde{background:var(--marca-claro)}.t-verde .n,.t-verde .l{color:#166534}
+.t-azul{background:#eff6ff}.t-azul .n,.t-azul .l{color:#1e40af}
+.t-gris{background:#f3f4f6}.t-gris .n,.t-gris .l{color:var(--texto)}
+
+/* ── Filtros ── */
+.filtros{display:flex;gap:7px;padding:0 13px 11px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.filtros::-webkit-scrollbar{display:none}
+.chip{font-size:12px;padding:7px 14px;border-radius:999px;border:1px solid var(--linea);
+  background:var(--blanco);color:var(--texto);white-space:nowrap;cursor:pointer;flex-shrink:0}
+.chip.on{background:var(--marca);color:#fff;border-color:var(--marca)}
+.buscador{padding:0 13px 11px}
+.buscador input{width:100%;padding:10px 14px;border:1px solid var(--linea);
+  border-radius:var(--r);outline:none;background:var(--blanco);color:var(--tinta)}
+.buscador input:focus{border-color:var(--marca-2)}
+
+/* ── Lista ── */
+.lista{background:var(--blanco);border-top:1px solid var(--linea)}
+.pedido{padding:13px 16px;border-bottom:1px solid #f4f4f7;display:flex;
+  justify-content:space-between;gap:10px;cursor:pointer;transition:background .1s}
+.pedido:active{background:#fafafc}
+.p-nro{font-size:14px;font-weight:700}
+.p-cli{font-size:13px;color:var(--texto);margin-top:1px}
+.p-meta{font-size:11px;color:var(--suave);margin-top:4px}
+.p-der{text-align:right;flex-shrink:0}
+.p-total{font-size:15px;font-weight:700}
+.badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;
+  display:inline-block;margin-top:5px;white-space:nowrap}
+.b-pend{background:#fef9c3;color:#854d0e}
+.b-verif{background:var(--marca-claro);color:#166534}
+.b-prep{background:#eff6ff;color:#1e40af}
+.b-env{background:#e0f2fe;color:#0c4a6e}
+.b-entr{background:#dcfce7;color:#14532d}
+.b-canc{background:#fee2e2;color:#991b1b}
+.vacio{padding:56px 22px;text-align:center;color:var(--suave);font-size:14px}
+.cargando{padding:36px;text-align:center;color:var(--suave);font-size:14px}
+
+/* ── Detalle ── */
+#detalle{position:fixed;inset:0;background:var(--fondo);z-index:100;overflow-y:auto}
+.det-sec{background:var(--blanco);padding:15px 16px;border-bottom:1px solid var(--linea)}
+.det-tit{font-size:11px;font-weight:700;color:var(--gris);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px}
+.det-nombre{font-size:16px;font-weight:700}
+.det-dato{font-size:13px;color:var(--texto);margin-top:3px;display:flex;align-items:center;gap:6px}
+.wa-btn{display:inline-flex;align-items:center;gap:7px;margin-top:11px;font-size:13px;
+  font-weight:600;padding:9px 17px;border-radius:var(--r);background:var(--wa);
+  color:#fff;text-decoration:none}
+.item{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;gap:10px}
+.item span:first-child{color:var(--texto)}
+.total{display:flex;justify-content:space-between;font-size:16px;font-weight:800;
+  padding-top:11px;margin-top:7px;border-top:1px solid var(--linea)}
+.total span:last-child{color:var(--marca)}
+select{width:100%;padding:12px 14px;border:1.5px solid var(--linea);border-radius:var(--r);
+  background:var(--blanco);color:var(--tinta);outline:none}
+select:focus{border-color:var(--marca-2)}
+textarea{width:100%;padding:11px 14px;border:1.5px solid var(--linea);border-radius:var(--r);
+  outline:none;resize:vertical;min-height:64px;background:var(--blanco);color:var(--tinta)}
+textarea:focus{border-color:var(--marca-2)}
+.hist{font-size:12px;color:var(--gris);padding:6px 0;border-bottom:1px solid #f4f4f7}
+.hist:last-child{border-bottom:none}
+.hist b{color:var(--texto);font-weight:600}
+.aviso{padding:11px 14px;border-radius:var(--r);font-size:13px;margin-top:10px}
+.aviso-ok{background:var(--marca-claro);color:#166534;border:1px solid var(--marca-borde)}
+.aviso-mal{background:#fef2f2;color:var(--rojo);border:1px solid #fecaca}
+
+@media(min-width:700px){
+  .resumen{grid-template-columns:repeat(4,1fr);max-width:900px;margin:0 auto}
+  .filtros,.buscador,.lista{max-width:900px;margin-left:auto;margin-right:auto}
+  #detalle{max-width:560px;left:50%;transform:translateX(-50%);box-shadow:0 0 40px rgba(0,0,0,.12)}
+}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-caja">
+    <div class="login-logo">JR</div>
+    <h1>Panel de administración</h1>
+    <p>Ingresá con tu usuario</p>
+    <div id="loginError" class="error oculto"></div>
+    <div class="campo">
+      <label for="usuario">Usuario</label>
+      <input type="text" id="usuario" autocomplete="username" autocapitalize="off" autocorrect="off">
+    </div>
+    <div class="campo">
+      <label for="password">Contraseña</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+    <button class="btn" id="btnLogin">Ingresar</button>
+  </div>
+</div>
+
+<div id="app" class="oculto">
+  <header>
+    <div>
+      <div class="hdr-t">JR Shop</div>
+      <div class="hdr-s" id="hdrUsuario"></div>
+    </div>
+    <button class="hdr-btn" id="btnSalir" title="Cerrar sesión">&#9099;</button>
+  </header>
+
+  <div class="resumen" id="resumen"></div>
+
+  <div class="filtros" id="filtros"></div>
+  <div class="buscador">
+    <input type="search" id="buscar" placeholder="Buscar por pedido, cliente o teléfono">
+  </div>
+
+  <div class="lista" id="lista">
+    <div class="cargando">Cargando…</div>
+  </div>
+</div>
+
+<div id="detalle" class="oculto"></div>
+
+<script>
+const API = "https://www.jrshop.site";
+const CLAVE_TOKEN = "jrPanelToken";
+
+let token   = localStorage.getItem(CLAVE_TOKEN) || "";
+let usuario = null;
+let filtro  = "Todos";
+let busqueda = "";
+let buscarTimer = null;
+
+const ESTADOS = ["Pendiente verificacion","Pago verificado","En preparacion",
+                 "Enviado","Entregado","Cancelado"];
+const CLASE_BADGE = {
+  "Pendiente verificacion":"b-pend", "Pago verificado":"b-verif",
+  "En preparacion":"b-prep", "Enviado":"b-env",
+  "Entregado":"b-entr", "Cancelado":"b-canc",
+};
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t == null ? "" : t)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+const plata = n => "$ " + Math.round(Number(n) || 0).toLocaleString("es-AR");
+
+function fecha(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const M = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  return d.getDate() + " " + M[d.getMonth()] + ", " +
+         String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+}
+
+async function api(ruta, opciones = {}) {
+  const res = await fetch(API + ruta, {
+    ...opciones,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "X-Panel-Token": token } : {}),
+      ...(opciones.headers || {}),
+    },
+  });
+  if (res.status === 401) { cerrarSesion(); throw new Error("Sesión vencida"); }
+  return res.json();
+}
+
+// ── Login ──
+async function entrar() {
+  const u = $("usuario").value.trim();
+  const p = $("password").value;
+  const err = $("loginError");
+  err.classList.add("oculto");
+
+  if (!u || !p) { err.textContent = "Completá usuario y contraseña"; err.classList.remove("oculto"); return; }
+
+  const btn = $("btnLogin");
+  btn.disabled = true; btn.textContent = "Ingresando…";
+  try {
+    const r = await fetch(API + "/panel/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario: u, password: p }),
+    }).then(x => x.json());
+
+    if (!r.ok) throw new Error(r.error || "No se pudo ingresar");
+    token = r.token; usuario = r.usuario;
+    localStorage.setItem(CLAVE_TOKEN, token);
+    $("password").value = "";
+    mostrarApp();
+  } catch (e) {
+    err.textContent = e.message; err.classList.remove("oculto");
+  } finally {
+    btn.disabled = false; btn.textContent = "Ingresar";
+  }
+}
+
+function cerrarSesion() {
+  token = ""; usuario = null;
+  localStorage.removeItem(CLAVE_TOKEN);
+  $("app").classList.add("oculto");
+  $("detalle").classList.add("oculto");
+  $("login").classList.remove("oculto");
+}
+
+async function salir() {
+  try { await api("/panel/logout", { method: "POST" }); } catch {}
+  cerrarSesion();
+}
+
+function mostrarApp() {
+  $("login").classList.add("oculto");
+  $("app").classList.remove("oculto");
+  if (usuario) $("hdrUsuario").textContent = usuario.nombre || usuario.usuario;
+  pintarFiltros();
+  cargarResumen();
+  cargarPedidos();
+}
+
+// ── Resumen ──
+async function cargarResumen() {
+  try {
+    const r = await api("/panel/resumen");
+    if (!r.ok) return;
+    const s = r.resumen;
+    $("resumen").innerHTML =
+      tarjeta("t-amarillo", s.pendientes, "Pendientes") +
+      tarjeta("t-azul", s.preparacion, "En preparación") +
+      tarjeta("t-gris", s.hoy, "Pedidos hoy") +
+      tarjeta("t-verde", plata(s.monto_mes), "Este mes");
+  } catch {}
+}
+const tarjeta = (c, n, l) =>
+  `<div class="tarjeta ${c}"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`;
+
+// ── Filtros ──
+function pintarFiltros() {
+  $("filtros").innerHTML = ["Todos", ...ESTADOS]
+    .map(e => `<span class="chip${e === filtro ? " on" : ""}" data-e="${esc(e)}">${esc(e)}</span>`)
+    .join("");
+}
+
+// ── Lista ──
+async function cargarPedidos() {
+  const lista = $("lista");
+  lista.innerHTML = '<div class="cargando">Cargando…</div>';
+  try {
+    const q = new URLSearchParams();
+    if (filtro !== "Todos") q.set("estado", filtro);
+    if (busqueda) q.set("q", busqueda);
+    const r = await api("/panel/pedidos?" + q);
+    if (!r.ok) throw new Error(r.error || "Error");
+
+    if (!r.pedidos.length) {
+      lista.innerHTML = '<div class="vacio">No hay pedidos que coincidan</div>';
+      return;
+    }
+
+    lista.innerHTML = r.pedidos.map(p => `
+      <div class="pedido" data-nro="${esc(p.nro)}">
+        <div style="min-width:0">
+          <div class="p-nro">${esc(p.nro)}</div>
+          <div class="p-cli">${esc(p.cliente)}</div>
+          <div class="p-meta">${p.cant_items} producto${p.cant_items === 1 ? "" : "s"} ·
+            ${p.tipo_entrega === "envio" ? "Envío" : "Retiro"} · ${esc(fecha(p.creado))}</div>
+        </div>
+        <div class="p-der">
+          <div class="p-total">${plata(p.total)}</div>
+          <span class="badge ${CLASE_BADGE[p.estado] || "b-pend"}">${esc(p.estado)}</span>
+        </div>
+      </div>`).join("");
+  } catch (e) {
+    lista.innerHTML = `<div class="vacio">${esc(e.message)}</div>`;
+  }
+}
+
+// ── Detalle ──
+async function abrirDetalle(nro) {
+  const d = $("detalle");
+  d.classList.remove("oculto");
+  d.innerHTML = '<div class="cargando">Cargando…</div>';
+  window.scrollTo(0, 0);
+
+  try {
+    const r = await api("/panel/pedido/" + encodeURIComponent(nro));
+    if (!r.ok) throw new Error(r.error || "No encontrado");
+    const p = r.pedido;
+    const tel = String(p.telefono || "").replace(/\D/g, "");
+
+    d.innerHTML = `
+      <header>
+        <div style="display:flex;align-items:center;gap:11px">
+          <button class="hdr-btn" id="btnVolver">&#8592;</button>
+          <div>
+            <div class="hdr-t">${esc(p.nro)}</div>
+            <div class="hdr-s">${esc(fecha(p.creado))}</div>
+          </div>
+        </div>
+        <span class="badge ${CLASE_BADGE[p.estado] || "b-pend"}">${esc(p.estado)}</span>
+      </header>
+
+      <div class="det-sec">
+        <div class="det-tit">Cliente</div>
+        <div class="det-nombre">${esc(p.cliente)}</div>
+        ${p.telefono ? `<div class="det-dato">${esc(p.telefono)}</div>` : ""}
+        ${p.dni ? `<div class="det-dato">DNI ${esc(p.dni)}</div>` : ""}
+        <div class="det-dato">${p.tipo_entrega === "envio"
+          ? esc(p.direccion || "Envío a domicilio") : "Retiro en local"}</div>
+        ${tel ? `<a class="wa-btn" href="https://wa.me/${tel.length <= 10 ? "54" + tel : tel}" target="_blank">Escribir por WhatsApp</a>` : ""}
+      </div>
+
+      <div class="det-sec">
+        <div class="det-tit">Productos</div>
+        ${r.items.map(i => `
+          <div class="item">
+            <span>${i.cantidad}× ${esc(i.nombre)}</span>
+            <span>${plata(i.subtotal)}</span>
+          </div>`).join("")}
+        ${p.costo_envio > 0 ? `<div class="item"><span>Envío</span><span>${plata(p.costo_envio)}</span></div>` : ""}
+        <div class="total"><span>Total</span><span>${plata(p.total)}</span></div>
+      </div>
+
+      <div class="det-sec">
+        <div class="det-tit">Cambiar estado</div>
+        <select id="selEstado">
+          ${ESTADOS.map(e => `<option value="${esc(e)}"${e === p.estado ? " selected" : ""}>${esc(e)}</option>`).join("")}
+        </select>
+        <div style="margin-top:9px">
+          <textarea id="txtNota" placeholder="Nota (opcional)"></textarea>
+        </div>
+        <button class="btn" id="btnGuardar" style="margin-top:9px">Guardar</button>
+        <div id="avisoEstado"></div>
+      </div>
+
+      ${r.historial.length ? `
+      <div class="det-sec">
+        <div class="det-tit">Historial</div>
+        ${r.historial.map(h => `
+          <div class="hist">
+            <b>${esc(h.estado_nuevo)}</b>
+            ${h.usuario ? " · " + esc(h.usuario) : ""} · ${esc(fecha(h.registrado))}
+            ${h.nota ? "<br>" + esc(h.nota) : ""}
+          </div>`).join("")}
+      </div>` : ""}
+    `;
+
+    $("btnVolver").onclick = () => d.classList.add("oculto");
+    $("btnGuardar").onclick = () => guardarEstado(nro);
+  } catch (e) {
+    d.innerHTML = `<div class="vacio">${esc(e.message)}
+      <br><br><button class="btn" onclick="document.getElementById('detalle').classList.add('oculto')"
+      style="max-width:180px;margin:0 auto">Volver</button></div>`;
+  }
+}
+
+async function guardarEstado(nro) {
+  const btn = $("btnGuardar");
+  const aviso = $("avisoEstado");
+  btn.disabled = true; btn.textContent = "Guardando…";
+  try {
+    const r = await api("/panel/pedido/" + encodeURIComponent(nro) + "/estado", {
+      method: "POST",
+      body: JSON.stringify({ estado: $("selEstado").value, nota: $("txtNota").value }),
+    });
+    if (!r.ok) throw new Error(r.error || "No se pudo guardar");
+    aviso.className = "aviso aviso-ok";
+    aviso.textContent = "Estado actualizado";
+    cargarResumen();
+    cargarPedidos();
+    setTimeout(() => abrirDetalle(nro), 700);
+  } catch (e) {
+    aviso.className = "aviso aviso-mal";
+    aviso.textContent = e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "Guardar";
+  }
+}
+
+// ── Eventos ──
+$("btnLogin").onclick = entrar;
+$("password").addEventListener("keydown", e => { if (e.key === "Enter") entrar(); });
+$("usuario").addEventListener("keydown", e => { if (e.key === "Enter") $("password").focus(); });
+$("btnSalir").onclick = salir;
+
+$("filtros").addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  filtro = chip.dataset.e;
+  pintarFiltros();
+  cargarPedidos();
+});
+
+$("lista").addEventListener("click", e => {
+  const fila = e.target.closest(".pedido");
+  if (fila) abrirDetalle(fila.dataset.nro);
+});
+
+$("buscar").addEventListener("input", e => {
+  clearTimeout(buscarTimer);
+  busqueda = e.target.value.trim();
+  buscarTimer = setTimeout(cargarPedidos, 350);
+});
+
+// ── Arranque: si hay token guardado, entrar directo ──
+(async () => {
+  if (!token) return;
+  try {
+    const r = await api("/panel/yo");
+    if (r.ok) { usuario = r.usuario; mostrarApp(); }
+  } catch {}
+})();
+</script>
+</body>
+</html>
