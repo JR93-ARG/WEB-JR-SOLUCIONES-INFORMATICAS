@@ -23,7 +23,12 @@ button,input,select,textarea{font-family:inherit;font-size:inherit}
 .oculto{display:none !important}
 
 /* ── Login ── */
-#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+/* Capa fija: aunque algo falle, nunca queda apilado debajo de la app */
+#login{position:fixed;inset:0;z-index:300;background:var(--fondo);
+  display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+/* Segunda barrera: con la sesion abierta, el login no se muestra */
+body.dentro #login{display:none}
+body:not(.dentro) #app{display:none}
 .login-caja{background:var(--blanco);border-radius:16px;padding:32px 26px;width:100%;max-width:360px;
   box-shadow:0 4px 24px rgba(30,27,48,.08)}
 .login-logo{width:52px;height:52px;background:var(--marca);border-radius:12px;
@@ -167,6 +172,15 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
 .total{display:flex;justify-content:space-between;font-size:16px;font-weight:800;
   padding-top:11px;margin-top:7px;border-top:1px solid var(--linea)}
 .total span:last-child{color:var(--marca)}
+.comp{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #f4f4f7}
+.comp:last-child{border-bottom:none}
+.comp-mini{width:46px;height:46px;border-radius:8px;object-fit:cover;
+  border:1px solid var(--linea);background:var(--fondo);cursor:pointer;flex-shrink:0}
+.comp-pdf{width:46px;height:46px;border-radius:8px;background:#fef2f2;color:var(--rojo);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;
+  border:1px solid #fecaca;flex-shrink:0}
+.comp-info{flex:1;min-width:0}
+.comp-acc{display:flex;gap:6px;flex-shrink:0}
 .hist{font-size:12px;color:var(--gris);padding:6px 0;border-bottom:1px solid #f4f4f7}
 .hist:last-child{border-bottom:none}
 .hist b{color:var(--texto);font-weight:600}
@@ -458,6 +472,7 @@ async function entrar() {
 function cerrarSesion() {
   token = ""; usuario = null;
   localStorage.removeItem(CLAVE_TOKEN);
+  document.body.classList.remove("dentro");
   $("app").classList.add("oculto");
   $("detalle").classList.add("oculto");
   cerrarModal();
@@ -470,6 +485,7 @@ async function salir() {
 }
 
 function mostrarApp() {
+  document.body.classList.add("dentro");
   $("login").classList.add("oculto");
   $("app").classList.remove("oculto");
   if (usuario) $("hdrUsuario").textContent = usuario.nombre || usuario.usuario;
@@ -632,6 +648,11 @@ async function abrirPedido(nro) {
         <div id="avisoEstado"></div>
       </div>
 
+      <div class="det-sec" id="secComprobantes">
+        <div class="det-tit">Comprobante de pago</div>
+        <div id="listaComprobantes"><div class="fila-det">Cargando…</div></div>
+      </div>
+
       ${p.notas ? `<div class="det-sec"><div class="det-tit">Notas del cliente</div>
         <div class="det-dato">${esc(p.notas)}</div></div>` : ""}
 
@@ -648,6 +669,7 @@ async function abrirPedido(nro) {
     `;
     $("btnVolver").onclick = () => d.classList.add("oculto");
     $("btnGuardarEstado").onclick = () => guardarEstado(nro);
+    cargarComprobantes(nro);
   } catch (e) {
     d.innerHTML = `<div class="vacio">${esc(e.message)}<br><br>
       <button class="btn" onclick="document.getElementById('detalle').classList.add('oculto')">Volver</button></div>`;
@@ -670,6 +692,75 @@ async function guardarEstado(nro) {
     avisar("avisoEstado", e.message, false);
   } finally {
     btn.disabled = false; btn.textContent = "Guardar";
+  }
+}
+
+// ── Comprobantes de pago ────────────────────────────────────────
+async function cargarComprobantes(nro) {
+  const cont = $("listaComprobantes");
+  if (!cont) return;
+  try {
+    const r = await api("/panel/comprobantes/" + encodeURIComponent(nro));
+    if (!r.ok) throw new Error(r.error || "Error");
+
+    if (!r.comprobantes.length) {
+      cont.innerHTML = '<div class="fila-det">El cliente todavía no subió el comprobante</div>';
+      return;
+    }
+
+    cont.innerHTML = r.comprobantes.map(c => {
+      const esPdf = c.tipo_mime === "application/pdf";
+      // El token va en la URL: <img> y los enlaces no mandan headers
+      const url = API + "/panel/comprobante/" + c.id + "?t=" + encodeURIComponent(token);
+      const kb = Math.round(c.bytes / 1024);
+
+      if (!c.disponible) {
+        return `<div class="comp">
+          <div class="comp-pdf" style="background:#f3f4f6;color:var(--suave);border-color:var(--linea)">—</div>
+          <div class="comp-info">
+            <div class="fila-nom" style="color:var(--suave)">Archivo borrado</div>
+            <div class="fila-det">Subido el ${esc(fecha(c.subido, false))} · se borró por antigüedad</div>
+          </div></div>`;
+      }
+
+      const vista = esPdf
+        ? `<div class="comp-pdf" onclick="window.open('${esc(url)}','_blank')">PDF</div>`
+        : `<img class="comp-mini" src="${esc(url)}" alt="Comprobante"
+             onclick="window.open('${esc(url)}','_blank')">`;
+
+      return `<div class="comp">
+        ${vista}
+        <div class="comp-info">
+          <div class="fila-nom">${esc(fecha(c.subido))}</div>
+          <div class="fila-det">${kb} KB
+            ${c.verificado ? ' · <span style="color:var(--marca)">verificado</span>' : ""}</div>
+        </div>
+        <div class="comp-acc">
+          <a class="btn btn-sec btn-chico" href="${esc(url)}&descargar=1"
+             download style="text-decoration:none">Bajar</a>
+          ${c.verificado ? "" :
+            `<button class="btn btn-chico" data-verificar="${c.id}" data-nro="${esc(nro)}">Verificar</button>`}
+        </div>
+      </div>`;
+    }).join("");
+
+    cont.querySelectorAll("[data-verificar]").forEach(b => {
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = "…";
+        try {
+          const r2 = await api("/panel/comprobante/" + b.dataset.verificar + "/verificar", {
+            method: "POST", body: JSON.stringify({ verificado: true }),
+          });
+          if (!r2.ok) throw new Error(r2.error);
+          cargarComprobantes(b.dataset.nro);
+        } catch (e) {
+          b.disabled = false; b.textContent = "Verificar";
+          alert(e.message);
+        }
+      };
+    });
+  } catch (e) {
+    cont.innerHTML = `<div class="fila-det">${esc(e.message)}</div>`;
   }
 }
 
@@ -1143,7 +1234,8 @@ function editarZona(z) {
 // ── Configuración ───────────────────────────────────────────────
 const NOMBRES_GRUPO = {
   negocio: "Datos del negocio", precios: "Precios",
-  catalogo: "Catálogo", pedidos: "Pedidos", general: "General",
+  catalogo: "Catálogo", pedidos: "Pedidos",
+  comprobantes: "Comprobantes", general: "General",
 };
 
 async function cargarConfig() {
@@ -1187,10 +1279,19 @@ async function cargarConfig() {
       }
       html += `</div>`;
     }
+    html += `<div class="tarjeta">
+        <div class="tarjeta-tit">Espacio de los comprobantes</div>
+        <div id="infoEspacio" class="fila-det">Cargando…</div>
+        <button class="btn btn-sec btn-chico" id="btnPurgar" style="margin-top:11px">
+          Borrar los vencidos ahora</button>
+        <div id="avisoPurga"></div>
+      </div>`;
     html += `<button class="btn btn-full" id="btnGuardarConfig">Guardar cambios</button>
              <div id="avisoConfig"></div>`;
     cont.innerHTML = html;
     $("btnGuardarConfig").onclick = guardarConfig;
+    $("btnPurgar").onclick = purgarComprobantes;
+    cargarEspacio();
   } catch (e) {
     cont.innerHTML = `<div class="vacio">${esc(e.message)}</div>`;
   }
@@ -1217,6 +1318,37 @@ async function guardarConfig() {
     avisar("avisoConfig", e.message, false);
   } finally {
     btn.disabled = false; btn.textContent = "Guardar cambios";
+  }
+}
+
+async function cargarEspacio() {
+  const el = $("infoEspacio");
+  if (!el) return;
+  try {
+    const r = await api("/panel/comprobantes/espacio");
+    if (!r.ok) throw new Error(r.error);
+    const e = r.espacio;
+    el.innerHTML = `${e.guardados} comprobante${e.guardados === 1 ? "" : "s"} guardado${e.guardados === 1 ? "" : "s"}
+      · ${e.mb} MB<br>${e.purgados} ya borrado${e.purgados === 1 ? "" : "s"} por antigüedad
+      ${e.a_purgar ? `<br><span style="color:var(--naranja)">${e.a_purgar} superaron los ${e.meses} meses</span>` : ""}`;
+  } catch (e) {
+    el.textContent = e.message;
+  }
+}
+
+async function purgarComprobantes() {
+  if (!confirm("¿Borrar los comprobantes que superaron el plazo de retención?\n\nEl registro queda, pero el archivo no se puede recuperar.")) return;
+  const btn = $("btnPurgar");
+  btn.disabled = true; btn.textContent = "Borrando…";
+  try {
+    const r = await api("/panel/comprobantes/purgar", { method: "POST" });
+    if (!r.ok) throw new Error(r.error);
+    avisar("avisoPurga", `${r.borrados} comprobante${r.borrados === 1 ? "" : "s"} borrado${r.borrados === 1 ? "" : "s"}`);
+    cargarEspacio();
+  } catch (e) {
+    avisar("avisoPurga", e.message, false);
+  } finally {
+    btn.disabled = false; btn.textContent = "Borrar los vencidos ahora";
   }
 }
 
