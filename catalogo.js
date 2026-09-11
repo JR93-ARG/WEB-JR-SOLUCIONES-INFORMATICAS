@@ -945,7 +945,19 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
           };
         }
       }
-    }).catch(function(e){ console.error("Sheets:", e); });
+      // Solo se confirma si el pedido quedo registrado de verdad.
+      // Antes decia "confirmado" aunque la API fallara.
+      if (!nroPedido) {
+        document.getElementById("confirmSub").innerHTML =
+          '<span style="color:#dc2626">No pudimos registrar el pedido.</span><br>' +
+          'Escribinos por WhatsApp y lo tomamos a mano.';
+      }
+    }).catch(function(e) {
+      console.error("Error registrando el pedido:", e);
+      document.getElementById("confirmSub").innerHTML =
+        '<span style="color:#dc2626">No pudimos registrar el pedido.</span><br>' +
+        'Escribinos por WhatsApp y lo tomamos a mano.';
+    });
     pedidoConfirmado = true;
     irAStep(5);
   } catch(err) {
@@ -955,7 +967,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   }
 });
 
-const API_URL   = "https://www.jrshop.site/pedido";
+const API_URL   = "https://jrrailway-production.up.railway.app/pedido";
 // El token de la API no va en el JS publico: seria visible para cualquiera.
 
 async function registrarEnSheets(filas) {
@@ -1007,8 +1019,7 @@ async function registrarEnSheets(filas) {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "X-API-Token": API_TOKEN
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(payload)
     });
@@ -1279,7 +1290,7 @@ btnTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smoo
 // Más vistos
 const MV_KEY     = "jrMasVistos";
 const MV_MOSTRAR = 8;
-const API_MV     = "https://www.jrshop.site";
+const API_MV     = "https://jrrailway-production.up.railway.app";
 
 function getMasVistos() {
   try { return JSON.parse(sessionStorage.getItem(MV_KEY)||"{}"); } catch { return {}; }
@@ -1504,7 +1515,7 @@ async function fetchDescripcion(href, fuente, nombreProducto) {
   if (cached) { descEl.textContent = cached; return; }
 
   try {
-    var res = await fetch("https://www.jrshop.site/descripcion", {
+    var res = await fetch("https://jrrailway-production.up.railway.app/descripcion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ producto: nombreProducto })
@@ -2036,7 +2047,7 @@ function renderCredito() {
     var r   = calcCredito(creditoPrecio, creditoAntPct, creditoCuotasSel);
 
     // Guardar en Sheets via Railway
-    fetch("https://www.jrshop.site/solicitud-credito", {
+    fetch("https://jrrailway-production.up.railway.app/solicitud-credito", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2156,7 +2167,7 @@ if (!localStorage.getItem(AYUDA_KEY)) {
 })();
 
 // ── Social proof ──────────────────────────────────────────────────────────────
-var API_SP   = "https://www.jrshop.site";
+var API_SP   = "https://jrrailway-production.up.railway.app";
 var NOMBRES  = ["Rodrigo","Valentina","Lucas","Camila","Martin","Sofia","Agustin","Lucia","Santiago","Florencia","Tomas","Julieta","Mateo","Micaela","Facundo"];
 var CIUDADES = ["Tucuman","Salta","Cordoba","Buenos Aires","Mendoza","Rosario","La Plata","Jujuy","Catamarca","Santiago del Estero"];
 
