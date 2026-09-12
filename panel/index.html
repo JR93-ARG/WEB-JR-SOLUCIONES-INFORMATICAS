@@ -399,40 +399,59 @@ function etiquetaProveedor(pv) {
 
 // Cuántas unidades pedirle a cada proveedor. Evita ir sumando ítem por ítem.
 
-// Margen de un item: lo que se cobra menos lo que costo.
-// Solo se ve en el panel; el cliente nunca ve el costo.
-function margenItem(i) {
+// Margen sobre lo que el cliente REALMENTE paga, no sobre el precio de
+// lista: el descuento por transferencia sale de nuestra ganancia.
+// El descuento del pedido se reparte entre los items segun su peso.
+function factorCobro(pedido, items) {
+  const lista = items.reduce((a, i) => a + (Number(i.subtotal) || 0), 0);
+  if (!lista) return 1;
+  // Lo cobrado por los productos, sin el envio (ese va al transporte)
+  const cobrado = (Number(pedido.total) || 0) - (Number(pedido.costo_envio) || 0);
+  if (cobrado <= 0 || cobrado >= lista) return 1;   // sin descuento
+  return cobrado / lista;
+}
+
+function margenItem(i, factor) {
   const costo = Number(i.costo_unit);
   if (!Number.isFinite(costo) || costo <= 0) return "";
   const cant = Number(i.cantidad) || 1;
-  const venta = Number(i.subtotal) || 0;
+  const lista = Number(i.subtotal) || 0;
+  const cobrado = lista * (factor || 1);
   const costoTotal = costo * cant;
-  const gana = venta - costoTotal;
-  const pct = venta ? Math.round(gana / venta * 100) : 0;
+  const gana = cobrado - costoTotal;
+  const pct = cobrado ? Math.round(gana / cobrado * 100) : 0;
   const color = gana > 0 ? "var(--marca)" : "var(--rojo)";
-  return `<div class="margen">costo ${plata(costoTotal)} ·
+  const conDesc = (factor || 1) < 0.999;
+  return `<div class="margen">costo ${plata(costoTotal)}${conDesc ? " · cobra " + plata(cobrado) : ""} ·
     <span style="color:${color}">gana ${plata(gana)} (${pct}%)</span></div>`;
 }
 
-// Margen del pedido completo
-function margenTotal(items) {
-  let venta = 0, costo = 0, faltan = 0;
+function margenTotal(pedido, items) {
+  const factor = factorCobro(pedido, items);
+  let lista = 0, costo = 0, faltan = 0;
   for (const i of items) {
     const c = Number(i.costo_unit);
     if (!Number.isFinite(c) || c <= 0) { faltan++; continue; }
-    venta += Number(i.subtotal) || 0;
+    lista += Number(i.subtotal) || 0;
     costo += c * (Number(i.cantidad) || 1);
   }
-  if (!venta) return "";
-  const gana = venta - costo;
-  const pct = Math.round(gana / venta * 100);
-  return `<div style="display:flex;justify-content:space-between;font-size:13px;
-      padding-top:9px;margin-top:7px;border-top:1px dashed var(--linea)">
-    <span style="color:var(--gris)">Ganancia${faltan ? ` (${faltan} sin costo)` : ""}</span>
-    <span style="font-weight:700;color:${gana > 0 ? "var(--marca)" : "var(--rojo)"}">
-      ${plata(gana)} · ${pct}%</span>
+  if (!lista) return "";
+  const cobrado = lista * factor;
+  const gana = cobrado - costo;
+  const pct = Math.round(gana / cobrado * 100);
+  const desc = lista - cobrado;
+  return `<div style="padding-top:9px;margin-top:7px;border-top:1px dashed var(--linea)">
+    ${desc > 1 ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gris)">
+      <span>Descuento por pago</span><span>-${plata(desc)}</span></div>` : ""}
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gris);margin-top:3px">
+      <span>Costo de los productos</span><span>${plata(costo)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:5px">
+      <span style="color:var(--gris)">Ganancia${faltan ? ` (${faltan} sin costo)` : ""}</span>
+      <span style="font-weight:700;color:${gana > 0 ? "var(--marca)" : "var(--rojo)"}">
+        ${plata(gana)} · ${pct}%</span></div>
   </div>`;
 }
+
 
 function resumenProveedores(items) {
   const porProv = {};
@@ -704,18 +723,19 @@ async function abrirPedido(nro) {
 
       <div class="det-sec">
         <div class="det-tit">Productos</div>
+        ${(() => { window._f = factorCobro(p, r.items); return ""; })()}
         ${r.items.map(i => `
           <div class="linea-item">
             <span>${i.cantidad}× ${esc(i.nombre)}
               ${etiquetaProveedor(i.pv)}
               ${i.producto_id ? `<span class="cod">${esc(i.producto_id)}</span>` : ""}
             </span>
-            <span>${plata(i.subtotal)}${margenItem(i)}</span>
+            <span>${plata(i.subtotal)}${margenItem(i, window._f)}</span>
           </div>`).join("")}
         ${p.costo_envio > 0 ? `<div class="linea-item"><span>Envío</span><span>${plata(p.costo_envio)}</span></div>` : ""}
         ${p.descuento > 0 ? `<div class="linea-item"><span>Descuento</span><span>-${plata(p.descuento)}</span></div>` : ""}
         <div class="total"><span>Total</span><span>${plata(p.total)}</span></div>
-        ${margenTotal(r.items)}
+        ${margenTotal(p, r.items)}
         ${resumenProveedores(r.items)}
       </div>
 
