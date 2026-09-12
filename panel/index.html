@@ -404,6 +404,13 @@ async function api(ruta, opciones = {}) {
     cerrarSesion();
     throw new Error("La sesión venció");
   }
+  // Si el servidor devuelve HTML en vez de JSON, es que la ruta no existe:
+  // tipicamente la API todavia no tiene la version nueva del codigo.
+  const tipo = res.headers.get("content-type") || "";
+  if (!tipo.includes("application/json")) {
+    if (res.status === 404) throw new Error("Esta función todavía no está en el servidor");
+    throw new Error(`El servidor respondió ${res.status}`);
+  }
   return res.json();
 }
 
