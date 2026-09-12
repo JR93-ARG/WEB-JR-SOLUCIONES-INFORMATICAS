@@ -288,6 +288,32 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
       <div id="listaZonas"></div>
     </section>
 
+    <!-- Precios -->
+    <section class="seccion" id="sec-precios">
+      <div class="titulo">Precios</div>
+      <div class="subtitulo">Margen de ganancia por categoría</div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-tit">Catálogo</div>
+        <div id="estadoCatalogo" class="fila-det">Cargando…</div>
+        <button class="btn btn-chico" id="btnRegenerar" style="margin-top:11px">
+          Regenerar el catálogo</button>
+        <div id="avisoRegenerar"></div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-tit">Margen por categoría</div>
+        <div class="fila-det" style="margin-bottom:12px">
+          Vacío usa el margen general. El margen de un producto puntual
+          se edita desde Productos y tiene prioridad.
+        </div>
+        <div id="listaCatMarkup"><div class="cargando">Cargando…</div></div>
+        <button class="btn btn-full" id="btnGuardarMarkups" style="margin-top:14px">
+          Guardar márgenes</button>
+        <div id="avisoMarkups"></div>
+      </div>
+    </section>
+
     <!-- Configuración -->
     <section class="seccion" id="sec-config">
       <div class="titulo">Configuración</div>
@@ -352,6 +378,7 @@ const SECCIONES = [
   { id: "promos",    nombre: "Promociones" },
   { id: "mensajes",  nombre: "Mensajes" },
   { id: "pagos",     nombre: "Pagos y envíos" },
+  { id: "precios",   nombre: "Precios" },
   { id: "config",    nombre: "Configuración" },
   { id: "clientes",  nombre: "Clientes" },
   { id: "cuenta",    nombre: "Mi cuenta" },
@@ -586,6 +613,7 @@ function mostrarApp() {
   if (usuario) $("hdrUsuario").textContent = usuario.nombre || usuario.usuario;
   pintarNav();
   cargarEstados();
+  leerMarkupGeneral();
   irA("pedidos");
 }
 
@@ -610,6 +638,7 @@ function irA(id) {
     promos:    cargarPromos,
     mensajes:  cargarMensajes,
     pagos:     () => { cargarMedios(); cargarZonas(); },
+    precios:   () => { cargarEstadoCatalogo(); cargarCatMarkup(); },
     config:    cargarConfig,
     clientes:  cargarClientes,
     cuenta:    cargarAuditoria,
@@ -946,9 +975,15 @@ function editarProducto(id, nombre, datos) {
       <input type="text" id="pNombre" value="${esc(datos.nombre || "")}">
     </div>
     <div class="campo">
+      <label>Margen de este producto (%)</label>
+      <input type="number" id="pMarkup" value="${datos.markup_pct != null ? datos.markup_pct : ""}"
+        placeholder="Vacío usa el de la categoría">
+      <div class="ayuda">Tiene prioridad sobre el margen de la categoría</div>
+    </div>
+    <div class="campo">
       <label>Precio fijo (opcional)</label>
-      <input type="number" id="pPrecio" value="${datos.precio_manual || ""}" placeholder="Dejar vacío para calcular con el markup">
-      <div class="ayuda">Si lo completás, este precio reemplaza al calculado</div>
+      <input type="number" id="pPrecio" value="${datos.precio_manual || ""}" placeholder="Dejar vacío para calcular con el margen">
+      <div class="ayuda">Si lo completás, reemplaza cualquier cálculo</div>
     </div>
     <label class="check"><input type="checkbox" id="pDestacado" ${datos.destacado ? "checked" : ""}>
       <span>Mostrar en destacados</span></label>
@@ -962,6 +997,7 @@ function editarProducto(id, nombre, datos) {
         body: JSON.stringify({
           nombre: $("pNombre").value.trim(),
           precio_manual: precio === "" ? null : Number(precio),
+          markup_pct: $("pMarkup").value.trim() === "" ? null : Number($("pMarkup").value),
           destacado: $("pDestacado").checked,
           oculto: $("pOculto").checked,
         }),
@@ -1476,6 +1512,121 @@ async function purgarComprobantes() {
   }
 }
 
+// ── Precios ─────────────────────────────────────────────────────
+async function cargarEstadoCatalogo() {
+  const el = $("estadoCatalogo");
+  if (!el) return;
+  try {
+    const r = await api("/panel/estado-catalogo");
+    if (!r.ok) throw new Error(r.error);
+    const u = r.ultima;
+    let txt = u
+      ? `Última actualización: ${fecha(u.inicio)}` +
+        (u.ok === false ? ' · <span style="color:var(--rojo)">falló</span>' : "") +
+        (u.nuevos != null ? `<br>${u.nuevos} nuevos · ${u.actualizados} actualizados` : "")
+      : "Todavía no se registró ninguna actualización";
+    if (r.pendiente) {
+      txt += `<br><span style="color:var(--naranja)">Hay una regeneración pendiente
+        desde ${esc(fecha(r.pendiente))}</span>`;
+    }
+    el.innerHTML = txt;
+  } catch (e) {
+    el.textContent = e.message;
+  }
+}
+
+async function regenerarCatalogo() {
+  if (!confirm("¿Regenerar el catálogo?\n\nSe vuelven a calcular todos los precios con los márgenes actuales. Tarda unos minutos.")) return;
+  const btn = $("btnRegenerar");
+  btn.disabled = true; btn.textContent = "Pidiendo…";
+  try {
+    const r = await api("/panel/regenerar", { method: "POST" });
+    if (!r.ok) throw new Error(r.error);
+    avisar("avisoRegenerar", r.mensaje, true);
+    cargarEstadoCatalogo();
+  } catch (e) {
+    avisar("avisoRegenerar", e.message, false);
+  } finally {
+    btn.disabled = false; btn.textContent = "Regenerar el catálogo";
+  }
+}
+
+async function cargarCatMarkup() {
+  const cont = $("listaCatMarkup");
+  cont.innerHTML = '<div class="cargando">Cargando…</div>';
+  try {
+    const r = await api("/panel/categorias-markup");
+    if (!r.ok) throw new Error(r.error);
+
+    const general = Number(cfgGeneralMarkup) || 50;
+    const filas = [
+      ...r.categorias,
+      ...r.sin_registrar.map(x => ({ slug: x.slug, nombre: x.slug,
+                                     productos: x.productos, markup_pct: null })),
+    ];
+    if (!filas.length) {
+      cont.innerHTML = '<div class="fila-det">No hay categorías todavía</div>';
+      return;
+    }
+    cont.innerHTML = filas.map(c => `
+      <div class="fila">
+        <div class="fila-txt">
+          <div class="fila-nom">${esc(c.nombre || c.slug)}</div>
+          <div class="fila-det">${c.productos} producto${c.productos === 1 ? "" : "s"}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <input type="number" class="mk-input" data-slug="${esc(c.slug)}"
+            data-nombre="${esc(c.nombre || c.slug)}"
+            value="${c.markup_pct != null ? c.markup_pct : ""}"
+            placeholder="${general}" style="width:76px;text-align:right;padding:8px 10px">
+          <span style="font-size:13px;color:var(--gris)">%</span>
+        </div>
+      </div>`).join("");
+  } catch (e) {
+    cont.innerHTML = `<div class="vacio">${esc(e.message)}</div>`;
+  }
+}
+
+async function guardarMarkups() {
+  const btn = $("btnGuardarMarkups");
+  btn.disabled = true; btn.textContent = "Guardando…";
+  let n = 0;
+  try {
+    for (const el of document.querySelectorAll(".mk-input")) {
+      const v = el.value.trim();
+      const r = await api("/panel/categorias-markup/" + encodeURIComponent(el.dataset.slug), {
+        method: "POST",
+        body: JSON.stringify({
+          markup_pct: v === "" ? null : Number(v),
+          nombre: el.dataset.nombre,
+        }),
+      });
+      if (!r.ok) throw new Error(r.error);
+      n++;
+    }
+    avisar("avisoMarkups",
+      `${n} categorías guardadas. Regenerá el catálogo para que se apliquen.`);
+  } catch (e) {
+    avisar("avisoMarkups", e.message, false);
+  } finally {
+    btn.disabled = false; btn.textContent = "Guardar márgenes";
+  }
+}
+
+// Markup general, para mostrarlo como referencia en los campos vacíos
+let cfgGeneralMarkup = 50;
+async function leerMarkupGeneral() {
+  try {
+    const r = await api("/panel/config");
+    if (!r.ok) return;
+    for (const items of Object.values(r.grupos)) {
+      const m = items.find(i => i.clave === "precios.markup");
+      if (m) { cfgGeneralMarkup = Number(m.valor) || 50; return; }
+    }
+  } catch {}
+}
+
+
 // ── Clientes ────────────────────────────────────────────────────
 async function cargarClientes() {
   const cont = $("listaClientes");
@@ -1561,6 +1712,8 @@ $("btnSalir").onclick = salir;
 $("btnNuevaPromo").onclick = nuevaPromo;
 $("btnNuevoMensaje").onclick = nuevoMensaje;
 $("btnCambiarPass").onclick = cambiarPassword;
+$("btnRegenerar").onclick = regenerarCatalogo;
+$("btnGuardarMarkups").onclick = guardarMarkups;
 
 $("nav").addEventListener("click", e => {
   const b = e.target.closest(".nav-item");
