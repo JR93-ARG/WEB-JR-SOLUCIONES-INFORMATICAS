@@ -331,6 +331,7 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
 <div id="modal" class="oculto"></div>
 <script>
 const API = "https://jrrailway-production.up.railway.app";
+const SITIO = "https://www.jrshop.com.ar";
 const CLAVE_TOKEN = "jrPanelToken";
 
 let token   = localStorage.getItem(CLAVE_TOKEN) || "";
@@ -676,7 +677,7 @@ async function abrirPedido(nro) {
     `;
     $("btnVolver").onclick = () => d.classList.add("oculto");
     $("btnGuardarEstado").onclick = () => guardarEstado(nro);
-    cargarComprobantes(nro);
+    cargarComprobantes(nro, p.telefono);
   } catch (e) {
     d.innerHTML = `<div class="vacio">${esc(e.message)}<br><br>
       <button class="btn" onclick="document.getElementById('detalle').classList.add('oculto')">Volver</button></div>`;
@@ -703,7 +704,7 @@ async function guardarEstado(nro) {
 }
 
 // ── Comprobantes de pago ────────────────────────────────────────
-async function cargarComprobantes(nro) {
+async function cargarComprobantes(nro, telCliente) {
   const cont = $("listaComprobantes");
   if (!cont) return;
   try {
@@ -711,7 +712,28 @@ async function cargarComprobantes(nro) {
     if (!r.ok) throw new Error(r.error || "Error");
 
     if (!r.comprobantes.length) {
-      cont.innerHTML = '<div class="fila-det">El cliente todavía no subió el comprobante</div>';
+      // Sin comprobante: se ofrece pedirlo por WhatsApp con el link directo
+      const tel = String(telCliente || "").replace(/\D/g, "");
+      const link = SITIO + "/comprobante/?p=" + encodeURIComponent(nro);
+      const texto = "Hola! Para confirmar tu pedido " + nro +
+                    " necesitamos el comprobante de la transferencia.\n\n" +
+                    "Podés enviarlo desde acá:\n" + link;
+      cont.innerHTML = `
+        <div class="fila-det" style="margin-bottom:11px">El cliente todavía no subió el comprobante</div>
+        ${tel ? `<a class="wa-btn" target="_blank"
+           href="https://wa.me/${tel.length <= 10 ? "54" + tel : tel}?text=${encodeURIComponent(texto)}">
+           Pedir el comprobante</a>` : ""}
+        <div style="margin-top:9px">
+          <button class="btn btn-sec btn-chico" id="copiarLinkComp"
+            data-link="${esc(link)}">Copiar el link</button>
+        </div>`;
+      const bc = $("copiarLinkComp");
+      if (bc) bc.onclick = () => {
+        navigator.clipboard.writeText(bc.dataset.link).then(() => {
+          bc.textContent = "Copiado";
+          setTimeout(() => { bc.textContent = "Copiar el link"; }, 2000);
+        });
+      };
       return;
     }
 
