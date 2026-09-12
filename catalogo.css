@@ -583,7 +583,16 @@ main{max-width:1400px;margin:0 auto;padding:0 20px 120px}
   font-weight:700;color:var(--tinta);outline:none;-moz-appearance:textfield;
 }
 .prod-qty input::-webkit-outer-spin-button,.prod-qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.prod-actions{display:flex;gap:11px;align-items:stretch}
+.prod-actions{display:flex;gap:11px;align-items:stretch;flex-wrap:wrap}
+/* Comprar ahora: ocupa el ancho completo arriba, es la accion principal */
+.prod-buy{
+  flex:1 1 100%;background:var(--marca);color:#fff;border:none;
+  padding:16px;border-radius:var(--r-sm);cursor:pointer;
+  font-size:15px;font-weight:700;display:flex;align-items:center;
+  justify-content:center;gap:9px;transition:background .15s;
+}
+.prod-buy:hover{background:var(--marca-osc)}
+.prod-buy svg{flex-shrink:0}
 .prod-add{
   flex:1;background:var(--marca-2);color:#fff;border:none;
   padding:16px;border-radius:var(--r-sm);cursor:pointer;

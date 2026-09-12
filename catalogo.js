@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-09-12 19:38
-window.JR_VERSION = "2026-09-12 19:38";
+// JR Shop — generado 2026-09-12 19:52
+window.JR_VERSION = "2026-09-12 19:52";
 
 
 const CART_PHONE = "543812235528";
@@ -1518,6 +1518,31 @@ function abrirProducto(dataStr) {
     btnAgregar.style.background = "#16a34a";
     setTimeout(function(){ btnAgregar.innerHTML = HTML_ADD; btnAgregar.style.background=""; }, 1600);
   };
+
+  // Comprar ahora: reemplaza el carrito con este producto y abre el
+  // checkout, respetando la cantidad elegida en el modal.
+  var btnComprar = document.getElementById("prodBtnComprar");
+  if (btnComprar) {
+    btnComprar.onclick = function() {
+      var qEl = document.getElementById("prodQty");
+      var n = Math.max(1, parseInt(qEl && qEl.value, 10) || 1);
+
+      carritoAnteriorCompraDirecta = cart.map(function(i){ return Object.assign({}, i); });
+      compraDirectaActiva = true;
+      pedidoConfirmado = false;
+
+      cart = [{
+        key: p.id, id: p.id, name: p.name, price: p.precioCatalogo,
+        reqMin: p.reqMin, baseUnits: p.baseUnits, pv: p.pv || "", qty: n
+      }];
+      saveCart();
+
+      cerrarProducto();
+      var panel = document.getElementById("cartPanel");
+      if (panel) panel.style.display = "none";
+      abrirCheckout();
+    };
+  }
 
   var btnShare = document.getElementById("prodBtnShare");
   if (btnShare) {
