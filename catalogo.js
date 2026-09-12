@@ -1,3 +1,6 @@
+// JR Shop — generado 2026-09-12 00:50
+window.JR_VERSION = "2026-09-12 00:50";
+
 
 const CART_PHONE = "543812235528";
 
@@ -898,8 +901,8 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       esMP
         ?"_El pago fue realizado por Mercado Pago._"
         :tieneComprobante
-          ?"_Comprobante adjunto: " + nombreComprobante + " — Por favor adjuntalo en este chat._"
-          :"_Por favor adjunta el comprobante de transferencia en este chat._"
+          ?"_Comprobante enviado desde la web._"
+          :"_Cuando transfieras, envianos el comprobante desde el link de abajo._"
     ].filter(l=>l!==null).join("\n");
 
     window.open("https://wa.me/"+CART_PHONE+"?text="+encodeURIComponent(msg),"_blank");
@@ -913,6 +916,13 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       costo_envio:costoEnvio, estado:"Pendiente verificacion"
     }));
     registrarEnSheets(filas).then(function(nroPedido) {
+      // Si el cliente adjunto el comprobante en el checkout, se sube ahora
+      // que ya tenemos el numero de pedido. Antes solo se mencionaba el
+      // nombre del archivo en el WhatsApp y habia que adjuntarlo a mano.
+      if (nroPedido && tieneComprobante) {
+        subirComprobante(nroPedido, comprobanteInput.files[0]);
+      }
+
       var linkTracking = nroPedido
         ? "https://www.jrshop.com.ar/seguimiento.html?pedido=" + nroPedido
         : null;
@@ -939,13 +949,27 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
             "Hola " + nombre.split(" ")[0] + "! Tu pedido " + nroPedido + " fue registrado en JR Soluciones Informaticas.\n\n" +
             "Segui el estado de tu compra en:\n" + linkTracking + "\n\n" +
             "Total: " + fmt(totalFinal) + "\n" +
+            "Cuando transfieras, envianos el comprobante desde aca:\n" +
+            "https://www.jrshop.com.ar/comprobante/?p=" + nroPedido + "\n\n" +
             "Nos contactaremos para coordinar pago y entrega."
           );
           window.open("https://wa.me/" + tel.replace(/\D/g,"") + "?text=" + msgWA, "_blank");
           };
         }
       }
-    }).catch(function(e){ console.error("Sheets:", e); });
+      // Solo se confirma si el pedido quedo registrado de verdad.
+      // Antes decia "confirmado" aunque la API fallara.
+      if (!nroPedido) {
+        document.getElementById("confirmSub").innerHTML =
+          '<span style="color:#dc2626">No pudimos registrar el pedido.</span><br>' +
+          'Escribinos por WhatsApp y lo tomamos a mano.';
+      }
+    }).catch(function(e) {
+      console.error("Error registrando el pedido:", e);
+      document.getElementById("confirmSub").innerHTML =
+        '<span style="color:#dc2626">No pudimos registrar el pedido.</span><br>' +
+        'Escribinos por WhatsApp y lo tomamos a mano.';
+    });
     pedidoConfirmado = true;
     irAStep(5);
   } catch(err) {
@@ -955,8 +979,44 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   }
 });
 
-const API_URL   = "https://www.jrshop.site/pedido";
+const API_URL   = "https://jrrailway-production.up.railway.app/pedido";
 // El token de la API no va en el JS publico: seria visible para cualquiera.
+
+// Sube el comprobante que el cliente adjunto en el checkout.
+// No bloquea la confirmacion: si falla, el cliente igual tiene el link
+// para mandarlo despues.
+function subirComprobante(nroPedido, archivo) {
+  if (!archivo) return;
+
+  var permitidos = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+  if (permitidos.indexOf(archivo.type) === -1) {
+    console.warn("Comprobante: tipo no permitido", archivo.type);
+    return;
+  }
+  if (archivo.size > 5 * 1024 * 1024) {
+    console.warn("Comprobante: supera los 5 MB");
+    return;
+  }
+
+  var lector = new FileReader();
+  lector.onload = function(ev) {
+    fetch(API_BASE + "/comprobante/" + encodeURIComponent(nroPedido), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        archivo: ev.target.result.split(",")[1],
+        nombre: archivo.name
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok) console.log("Comprobante enviado");
+      else console.warn("Comprobante:", d.error);
+    })
+    .catch(function(e) { console.warn("Comprobante:", e.message); });
+  };
+  lector.readAsDataURL(archivo);
+}
 
 async function registrarEnSheets(filas) {
   try {
@@ -1007,8 +1067,7 @@ async function registrarEnSheets(filas) {
     const res = await fetch(API_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "X-API-Token": API_TOKEN
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(payload)
     });
@@ -1279,7 +1338,7 @@ btnTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smoo
 // Más vistos
 const MV_KEY     = "jrMasVistos";
 const MV_MOSTRAR = 8;
-const API_MV     = "https://www.jrshop.site";
+const API_MV     = "https://jrrailway-production.up.railway.app";
 
 function getMasVistos() {
   try { return JSON.parse(sessionStorage.getItem(MV_KEY)||"{}"); } catch { return {}; }
@@ -1504,7 +1563,7 @@ async function fetchDescripcion(href, fuente, nombreProducto) {
   if (cached) { descEl.textContent = cached; return; }
 
   try {
-    var res = await fetch("https://www.jrshop.site/descripcion", {
+    var res = await fetch("https://jrrailway-production.up.railway.app/descripcion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ producto: nombreProducto })
@@ -2036,7 +2095,7 @@ function renderCredito() {
     var r   = calcCredito(creditoPrecio, creditoAntPct, creditoCuotasSel);
 
     // Guardar en Sheets via Railway
-    fetch("https://www.jrshop.site/solicitud-credito", {
+    fetch("https://jrrailway-production.up.railway.app/solicitud-credito", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2156,7 +2215,7 @@ if (!localStorage.getItem(AYUDA_KEY)) {
 })();
 
 // ── Social proof ──────────────────────────────────────────────────────────────
-var API_SP   = "https://www.jrshop.site";
+var API_SP   = "https://jrrailway-production.up.railway.app";
 var NOMBRES  = ["Rodrigo","Valentina","Lucas","Camila","Martin","Sofia","Agustin","Lucia","Santiago","Florencia","Tomas","Julieta","Mateo","Micaela","Facundo"];
 var CIUDADES = ["Tucuman","Salta","Cordoba","Buenos Aires","Mendoza","Rosario","La Plata","Jujuy","Catamarca","Santiago del Estero"];
 

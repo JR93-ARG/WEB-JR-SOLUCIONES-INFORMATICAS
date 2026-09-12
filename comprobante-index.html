@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Enviar comprobante — JR Shop</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --marca:#15803d; --marca-2:#16a34a; --marca-claro:#f0fdf4; --marca-borde:#bbf7d0;
+  --tinta:#1e1b30; --texto:#4b5563; --gris:#6b7280; --suave:#9ca3af;
+  --linea:#e9e7f0; --fondo:#f7f7fb; --rojo:#dc2626;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--fondo);color:var(--tinta);font-size:15px;line-height:1.5;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.caja{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:420px;
+  box-shadow:0 4px 24px rgba(30,27,48,.08)}
+.logo{width:52px;height:52px;background:var(--marca);border-radius:12px;
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  font-weight:800;font-size:17px;margin:0 auto 16px}
+h1{font-size:19px;font-weight:800;text-align:center;margin-bottom:5px}
+.sub{font-size:13px;color:var(--gris);text-align:center;margin-bottom:22px}
+.pedido{background:var(--marca-claro);border:1px solid var(--marca-borde);
+  border-radius:10px;padding:13px;margin-bottom:18px;text-align:center}
+.pedido .nro{font-size:17px;font-weight:800;color:#166534}
+.pedido .det{font-size:13px;color:#166534;margin-top:2px}
+label{display:block;font-size:11px;font-weight:700;color:var(--gris);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+.soltar{border:2px dashed var(--linea);border-radius:12px;padding:28px 16px;
+  text-align:center;cursor:pointer;transition:all .15s;background:var(--fondo)}
+.soltar:hover,.soltar.encima{border-color:var(--marca-2);background:var(--marca-claro)}
+.soltar svg{color:var(--suave);margin-bottom:9px}
+.soltar .t{font-size:14px;font-weight:600}
+.soltar .d{font-size:12px;color:var(--gris);margin-top:3px}
+#archivo{display:none}
+.previa{margin-top:14px;text-align:center}
+.previa img{max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--linea)}
+.previa .nom{font-size:13px;color:var(--texto);margin-top:9px}
+.btn{width:100%;background:var(--marca);color:#fff;border:none;padding:13px;
+  border-radius:10px;font-weight:700;cursor:pointer;margin-top:16px;font-size:15px}
+.btn:hover{background:#166534}
+.btn:disabled{background:#c8c8d0;cursor:not-allowed}
+.aviso{padding:12px 14px;border-radius:10px;font-size:13px;margin-top:14px}
+.ok{background:var(--marca-claro);color:#166534;border:1px solid var(--marca-borde)}
+.mal{background:#fef2f2;color:var(--rojo);border:1px solid #fecaca}
+.listo{text-align:center;padding:16px 0}
+.listo .tilde{width:62px;height:62px;background:var(--marca-claro);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.listo h2{font-size:18px;font-weight:800;margin-bottom:6px}
+.listo p{font-size:14px;color:var(--texto)}
+.wa{display:inline-flex;align-items:center;gap:8px;margin-top:18px;font-size:14px;
+  font-weight:600;padding:11px 20px;border-radius:10px;background:#25D366;
+  color:#fff;text-decoration:none}
+.oculto{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="caja">
+  <div id="formulario">
+    <div class="logo">JR</div>
+    <h1>Enviar comprobante</h1>
+    <p class="sub">Subí la captura o el PDF de tu transferencia</p>
+
+    <div id="datosPedido" class="pedido oculto"></div>
+
+    <div id="campoNro" class="oculto" style="margin-bottom:16px">
+      <label for="nro">Número de pedido</label>
+      <input type="text" id="nro" placeholder="WEB-0012"
+        style="width:100%;padding:11px 13px;border:1.5px solid var(--linea);
+               border-radius:10px;outline:none;text-transform:uppercase">
+    </div>
+
+    <label>Comprobante</label>
+    <div class="soltar" id="zona">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <div class="t">Tocá para elegir el archivo</div>
+      <div class="d">Imagen o PDF, hasta 5 MB</div>
+    </div>
+    <input type="file" id="archivo" accept="image/jpeg,image/png,image/webp,application/pdf">
+
+    <div id="previa" class="previa oculto"></div>
+    <button class="btn" id="btnEnviar" disabled>Enviar comprobante</button>
+    <div id="aviso"></div>
+  </div>
+
+  <div id="exito" class="listo oculto">
+    <div class="tilde">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+           stroke="#16a34a" stroke-width="3">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h2>¡Comprobante recibido!</h2>
+    <p>Vamos a verificar el pago y te avisamos.</p>
+    <a class="wa" id="linkWa" href="#" target="_blank">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-.9 1.2-.3.2-.6.1a8 8 0 01-2.4-1.5 9 9 0 01-1.6-2c-.2-.3 0-.5.1-.6l.5-.5.3-.5v-.5l-1-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4a3.2 3.2 0 00-1 2.4A5.6 5.6 0 009.3 12a12.7 12.7 0 004.9 4.3c.7.3 1.2.5 1.6.6a3.9 3.9 0 001.8.1 3 3 0 001.9-1.4 2.4 2.4 0 00.2-1.4c-.1-.1-.3-.2-.6-.3z"/>
+        <path d="M12 2a10 10 0 00-8.6 15L2 22l5.2-1.4A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.1l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1112 20.2z"/>
+      </svg>
+      Escribinos por WhatsApp
+    </a>
+  </div>
+</div>
+
+<script>
+const API = "https://jrrailway-production.up.railway.app";
+const WHATSAPP = "543812235528";
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t == null ? "" : t)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+
+let archivoB64 = null, nombreArchivo = "", nroPedido = "";
+
+// El número puede venir en la URL: /comprobante/?p=WEB-0012
+const params = new URLSearchParams(location.search);
+nroPedido = (params.get("p") || params.get("pedido") || "").toUpperCase().trim();
+
+function mostrarAviso(texto, ok = false) {
+  const el = $("aviso");
+  el.className = "aviso " + (ok ? "ok" : "mal");
+  el.textContent = texto;
+}
+
+// ── Buscar los datos del pedido ──
+async function buscarPedido() {
+  if (!nroPedido) {
+    $("campoNro").classList.remove("oculto");
+    return;
+  }
+  try {
+    const r = await fetch(API + "/pedido-publico/" + encodeURIComponent(nroPedido))
+      .then(x => x.json());
+    if (r.ok) {
+      const p = r.pedido;
+      $("datosPedido").innerHTML =
+        `<div class="nro">${esc(p.nro)}</div>
+         <div class="det">${esc(p.cliente)} · $ ${Math.round(p.total).toLocaleString("es-AR")}</div>`;
+      $("datosPedido").classList.remove("oculto");
+    } else {
+      $("campoNro").classList.remove("oculto");
+      $("nro").value = nroPedido;
+    }
+  } catch {
+    $("campoNro").classList.remove("oculto");
+    $("nro").value = nroPedido;
+  }
+}
+
+// ── Elegir el archivo ──
+$("zona").onclick = () => $("archivo").click();
+
+$("zona").addEventListener("dragover", e => {
+  e.preventDefault(); $("zona").classList.add("encima");
+});
+$("zona").addEventListener("dragleave", () => $("zona").classList.remove("encima"));
+$("zona").addEventListener("drop", e => {
+  e.preventDefault(); $("zona").classList.remove("encima");
+  if (e.dataTransfer.files.length) tomarArchivo(e.dataTransfer.files[0]);
+});
+
+$("archivo").onchange = e => {
+  if (e.target.files.length) tomarArchivo(e.target.files[0]);
+};
+
+function tomarArchivo(f) {
+  $("aviso").className = ""; $("aviso").textContent = "";
+
+  const permitidos = ["image/jpeg","image/png","image/webp","application/pdf"];
+  if (!permitidos.includes(f.type)) {
+    mostrarAviso("Tiene que ser una imagen (JPG, PNG, WEBP) o un PDF");
+    return;
+  }
+  if (f.size > 5 * 1024 * 1024) {
+    mostrarAviso("El archivo supera los 5 MB. Probá sacarle una foto con menos calidad.");
+    return;
+  }
+
+  nombreArchivo = f.name;
+  const lector = new FileReader();
+  lector.onload = ev => {
+    archivoB64 = ev.target.result.split(",")[1];
+    const prev = $("previa");
+    prev.classList.remove("oculto");
+    prev.innerHTML = f.type === "application/pdf"
+      ? `<div class="nom">📄 ${esc(f.name)} · ${Math.round(f.size/1024)} KB</div>`
+      : `<img src="${ev.target.result}" alt="Vista previa">
+         <div class="nom">${esc(f.name)} · ${Math.round(f.size/1024)} KB</div>`;
+    $("btnEnviar").disabled = false;
+  };
+  lector.onerror = () => mostrarAviso("No se pudo leer el archivo");
+  lector.readAsDataURL(f);
+}
+
+// ── Enviar ──
+$("btnEnviar").onclick = async () => {
+  const nro = nroPedido || $("nro").value.toUpperCase().trim();
+  if (!nro) { mostrarAviso("Escribí el número de pedido"); return; }
+  if (!archivoB64) { mostrarAviso("Elegí el comprobante"); return; }
+
+  const btn = $("btnEnviar");
+  btn.disabled = true; btn.textContent = "Enviando…";
+  try {
+    const r = await fetch(API + "/comprobante/" + encodeURIComponent(nro), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archivo: archivoB64, nombre: nombreArchivo }),
+    }).then(x => x.json());
+
+    if (!r.ok) throw new Error(r.error || "No se pudo enviar");
+
+    $("formulario").classList.add("oculto");
+    $("exito").classList.remove("oculto");
+    $("linkWa").href = "https://wa.me/" + WHATSAPP +
+      "?text=" + encodeURIComponent("Hola! Envié el comprobante del pedido " + nro);
+  } catch (e) {
+    mostrarAviso(e.message);
+    btn.disabled = false; btn.textContent = "Enviar comprobante";
+  }
+};
+
+buscarPedido();
+</script>
+</body>
+</html>
