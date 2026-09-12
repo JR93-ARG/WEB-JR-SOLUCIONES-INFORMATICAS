@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-09-12 19:28
-window.JR_VERSION = "2026-09-12 19:28";
+// JR Shop — generado 2026-09-12 19:38
+window.JR_VERSION = "2026-09-12 19:38";
 
 
 const CART_PHONE = "543812235528";
@@ -436,7 +436,8 @@ function abrirCheckout() {
   if (preview)     preview.style.display     = "none";
   if (area)        area.style.borderColor    = "#e0e0e0";
   const btnEnviar = document.getElementById("btnEnviar");
-  if (btnEnviar) { btnEnviar.disabled=true; btnEnviar.style.opacity=".4"; btnEnviar.style.cursor="default"; btnEnviar.textContent="Confirmar pedido"; }
+  // El boton arranca habilitado: el comprobante es opcional.
+  if (btnEnviar) { btnEnviar.disabled=false; btnEnviar.style.opacity="1"; btnEnviar.style.cursor="pointer"; btnEnviar.textContent="Confirmar pedido"; }
   const mpPagado = document.getElementById("mpPagado");
   if (mpPagado) mpPagado.style.display = "none";
 
@@ -886,6 +887,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       // cuando responde la API el formulario ya puede haberse reiniciado y
       // comprobanteInput.files quedaria vacio.
       const archivoComprobante = tieneComprobante ? comprobanteInput.files[0] : null;
+        console.log("[checkout] input tiene archivo:", tieneComprobante);
       const nombreComprobante = archivoComprobante ? archivoComprobante.name : "";
 
     const lineas = cart.map(i => `  - ${i.qty}x ${limpiarTexto(i.name)}  =>  ${fmt(i.price*i.qty)}`).join("\n");
@@ -919,7 +921,9 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       // Si el cliente adjunto el comprobante en el checkout, se sube ahora
       // que ya tenemos el numero de pedido. Antes solo se mencionaba el
       // nombre del archivo en el WhatsApp y habia que adjuntarlo a mano.
-      if (nroPedido && archivoComprobante) {
+        console.log("[checkout] pedido:", nroPedido, "· archivo adjunto:",
+                    archivoComprobante ? archivoComprobante.name : "ninguno");
+        if (nroPedido && archivoComprobante) {
         subirComprobante(nroPedido, archivoComprobante);
       }
 
@@ -986,34 +990,44 @@ const API_URL   = "https://jrrailway-production.up.railway.app/pedido";
 // No bloquea la confirmacion: si falla, el cliente igual tiene el link
 // para mandarlo despues.
 function subirComprobante(nroPedido, archivo) {
+  console.log("[comprobante] inicio →", nroPedido,
+              archivo ? archivo.name + " (" + archivo.type + ", " + archivo.size + " bytes)" : "SIN ARCHIVO");
   if (!archivo) return;
 
   var permitidos = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
   if (permitidos.indexOf(archivo.type) === -1) {
-    console.warn("Comprobante: tipo no permitido", archivo.type);
+    console.error("[comprobante] tipo no permitido:", archivo.type);
     return;
   }
   if (archivo.size > 5 * 1024 * 1024) {
-    console.warn("Comprobante: supera los 5 MB");
+    console.error("[comprobante] supera los 5 MB:", archivo.size);
     return;
   }
 
   var lector = new FileReader();
+  lector.onerror = function() { console.error("[comprobante] no se pudo leer el archivo"); };
   lector.onload = function(ev) {
-    fetch("https://jrrailway-production.up.railway.app/comprobante/" + encodeURIComponent(nroPedido), {
+    var b64 = String(ev.target.result || "").split(",")[1] || "";
+    console.log("[comprobante] leído:", b64.length, "caracteres base64");
+    if (!b64) { console.error("[comprobante] quedó vacío al leerlo"); return; }
+
+    var url = "https://jrrailway-production.up.railway.app/comprobante/" + encodeURIComponent(nroPedido);
+    console.log("[comprobante] enviando a", url);
+
+    fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        archivo: ev.target.result.split(",")[1],
-        nombre: archivo.name
-      })
+      body: JSON.stringify({ archivo: b64, nombre: archivo.name })
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      console.log("[comprobante] HTTP", r.status);
+      return r.json();
+    })
     .then(function(d) {
-      if (d.ok) console.log("Comprobante enviado");
-      else console.warn("Comprobante:", d.error);
+      if (d.ok) console.log("[comprobante] ✓ guardado con id", d.id);
+      else console.error("[comprobante] rechazado:", d.error);
     })
-    .catch(function(e) { console.warn("Comprobante:", e.message); });
+    .catch(function(e) { console.error("[comprobante] error de red:", e.message); });
   };
   lector.readAsDataURL(archivo);
 }
