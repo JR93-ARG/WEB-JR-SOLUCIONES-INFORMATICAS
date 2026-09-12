@@ -169,6 +169,14 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
   color:#fff;text-decoration:none}
 .linea-item{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;gap:10px}
 .linea-item span:first-child{color:var(--texto)}
+/* Proveedor: dato interno, nunca se muestra al cliente */
+.prov{font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;
+  margin-left:5px;vertical-align:middle;letter-spacing:.3px;white-space:nowrap}
+.prov-X{background:#eff6ff;color:#1e40af}
+.prov-D{background:#fef3c7;color:#92400e}
+.cod{font-size:10px;color:var(--suave);margin-left:5px;white-space:nowrap}
+/* Costo y ganancia: dato interno, nunca sale al cliente */
+.margen{font-size:10px;color:var(--gris);font-weight:400;margin-top:2px;white-space:nowrap}
 .total{display:flex;justify-content:space-between;font-size:16px;font-weight:800;
   padding-top:11px;margin-top:7px;border-top:1px solid var(--linea)}
 .total span:last-child{color:var(--marca)}
@@ -381,6 +389,66 @@ const esc = t => String(t == null ? "" : t)
   .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 const plata = n => "$ " + Math.round(Number(n) || 0).toLocaleString("es-AR");
 
+// Proveedor del producto. Se ve SOLO en el panel, nunca en el catálogo.
+const PROVEEDORES = { X: "Ximaro", D: "DAZ" };
+function etiquetaProveedor(pv) {
+  const nombre = PROVEEDORES[pv];
+  if (!nombre) return "";
+  return `<span class="prov prov-${esc(pv)}">${esc(nombre)}</span>`;
+}
+
+// Cuántas unidades pedirle a cada proveedor. Evita ir sumando ítem por ítem.
+
+// Margen de un item: lo que se cobra menos lo que costo.
+// Solo se ve en el panel; el cliente nunca ve el costo.
+function margenItem(i) {
+  const costo = Number(i.costo_unit);
+  if (!Number.isFinite(costo) || costo <= 0) return "";
+  const cant = Number(i.cantidad) || 1;
+  const venta = Number(i.subtotal) || 0;
+  const costoTotal = costo * cant;
+  const gana = venta - costoTotal;
+  const pct = venta ? Math.round(gana / venta * 100) : 0;
+  const color = gana > 0 ? "var(--marca)" : "var(--rojo)";
+  return `<div class="margen">costo ${plata(costoTotal)} ·
+    <span style="color:${color}">gana ${plata(gana)} (${pct}%)</span></div>`;
+}
+
+// Margen del pedido completo
+function margenTotal(items) {
+  let venta = 0, costo = 0, faltan = 0;
+  for (const i of items) {
+    const c = Number(i.costo_unit);
+    if (!Number.isFinite(c) || c <= 0) { faltan++; continue; }
+    venta += Number(i.subtotal) || 0;
+    costo += c * (Number(i.cantidad) || 1);
+  }
+  if (!venta) return "";
+  const gana = venta - costo;
+  const pct = Math.round(gana / venta * 100);
+  return `<div style="display:flex;justify-content:space-between;font-size:13px;
+      padding-top:9px;margin-top:7px;border-top:1px dashed var(--linea)">
+    <span style="color:var(--gris)">Ganancia${faltan ? ` (${faltan} sin costo)` : ""}</span>
+    <span style="font-weight:700;color:${gana > 0 ? "var(--marca)" : "var(--rojo)"}">
+      ${plata(gana)} · ${pct}%</span>
+  </div>`;
+}
+
+function resumenProveedores(items) {
+  const porProv = {};
+  for (const i of items) {
+    if (!i.pv || !PROVEEDORES[i.pv]) continue;
+    porProv[i.pv] = (porProv[i.pv] || 0) + (Number(i.cantidad) || 0);
+  }
+  const claves = Object.keys(porProv);
+  if (claves.length < 2) return "";   // con un solo proveedor no aporta nada
+  return `<div style="margin-top:11px;padding-top:10px;border-top:1px dashed var(--linea)">
+    <div class="det-tit" style="margin-bottom:6px">Pedir a</div>
+    ${claves.map(k => `<span class="prov prov-${esc(k)}" style="margin:0 6px 0 0">${esc(PROVEEDORES[k])}: ${porProv[k]} u.</span>`).join("")}
+  </div>`;
+}
+
+
 function fecha(iso, conHora = true) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -558,7 +626,9 @@ async function cargarResumen() {
       tarjetaNum("c-amarillo", s.pendientes, "Pendientes") +
       tarjetaNum("c-azul", s.preparacion, "En preparación") +
       tarjetaNum("c-gris", s.hoy, "Pedidos hoy") +
-      tarjetaNum("c-verde", plata(s.monto_mes), "Este mes");
+      tarjetaNum("c-verde", plata(s.monto_mes), "Ventas del mes") +
+      (s.margen_mes ? tarjetaNum("c-azul", plata(s.margen_mes),
+        `Ganancia (${s.margen_pct}%)`) : "");
   } catch {}
 }
 const tarjetaNum = (c, n, l) =>
@@ -636,12 +706,17 @@ async function abrirPedido(nro) {
         <div class="det-tit">Productos</div>
         ${r.items.map(i => `
           <div class="linea-item">
-            <span>${i.cantidad}× ${esc(i.nombre)}</span>
-            <span>${plata(i.subtotal)}</span>
+            <span>${i.cantidad}× ${esc(i.nombre)}
+              ${etiquetaProveedor(i.pv)}
+              ${i.producto_id ? `<span class="cod">${esc(i.producto_id)}</span>` : ""}
+            </span>
+            <span>${plata(i.subtotal)}${margenItem(i)}</span>
           </div>`).join("")}
         ${p.costo_envio > 0 ? `<div class="linea-item"><span>Envío</span><span>${plata(p.costo_envio)}</span></div>` : ""}
         ${p.descuento > 0 ? `<div class="linea-item"><span>Descuento</span><span>-${plata(p.descuento)}</span></div>` : ""}
         <div class="total"><span>Total</span><span>${plata(p.total)}</span></div>
+        ${margenTotal(r.items)}
+        ${resumenProveedores(r.items)}
       </div>
 
       <div class="det-sec">
