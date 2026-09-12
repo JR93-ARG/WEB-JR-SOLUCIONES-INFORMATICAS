@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-09-12 16:06
-window.JR_VERSION = "2026-09-12 16:06";
+// JR Shop — generado 2026-09-12 19:28
+window.JR_VERSION = "2026-09-12 19:28";
 
 
 const CART_PHONE = "543812235528";
@@ -815,18 +815,14 @@ function onComprobanteChange(input) {
 }
 
 function verificarComprobante() {
-  const input = document.getElementById("inpComprobante");
-  const btn   = document.getElementById("btnEnviar");
-  const tieneArchivo = input && input.files && input.files.length > 0;
-  if (tieneArchivo) {
-    btn.disabled = false;
-    btn.style.opacity = "1";
-    btn.style.cursor  = "pointer";
-  } else {
-    btn.disabled = true;
-    btn.style.opacity = ".4";
-    btn.style.cursor  = "default";
-  }
+  // El comprobante es OPCIONAL: el cliente puede confirmar el pedido y
+  // enviarlo despues desde el link que recibe por WhatsApp. Antes este
+  // boton quedaba deshabilitado sin archivo y no se podia comprar.
+  const btn = document.getElementById("btnEnviar");
+  if (!btn) return;
+  btn.disabled = false;
+  btn.style.opacity = "1";
+  btn.style.cursor  = "pointer";
 }
 
 function habilitarConfirmacionMP() {
@@ -886,7 +882,11 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 
     const comprobanteInput = document.getElementById("inpComprobante");
     const tieneComprobante = comprobanteInput && comprobanteInput.files && comprobanteInput.files.length > 0;
-    const nombreComprobante = tieneComprobante ? comprobanteInput.files[0].name : "";
+      // Se guarda la referencia al archivo ACA, no dentro del callback: para
+      // cuando responde la API el formulario ya puede haberse reiniciado y
+      // comprobanteInput.files quedaria vacio.
+      const archivoComprobante = tieneComprobante ? comprobanteInput.files[0] : null;
+      const nombreComprobante = archivoComprobante ? archivoComprobante.name : "";
 
     const lineas = cart.map(i => `  - ${i.qty}x ${limpiarTexto(i.name)}  =>  ${fmt(i.price*i.qty)}`).join("\n");
     const msg = [
@@ -919,8 +919,8 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       // Si el cliente adjunto el comprobante en el checkout, se sube ahora
       // que ya tenemos el numero de pedido. Antes solo se mencionaba el
       // nombre del archivo en el WhatsApp y habia que adjuntarlo a mano.
-      if (nroPedido && tieneComprobante) {
-        subirComprobante(nroPedido, comprobanteInput.files[0]);
+      if (nroPedido && archivoComprobante) {
+        subirComprobante(nroPedido, archivoComprobante);
       }
 
       var linkTracking = nroPedido
@@ -1000,7 +1000,7 @@ function subirComprobante(nroPedido, archivo) {
 
   var lector = new FileReader();
   lector.onload = function(ev) {
-    fetch(API_BASE + "/comprobante/" + encodeURIComponent(nroPedido), {
+    fetch("https://jrrailway-production.up.railway.app/comprobante/" + encodeURIComponent(nroPedido), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
