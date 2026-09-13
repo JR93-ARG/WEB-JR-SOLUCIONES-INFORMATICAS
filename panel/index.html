@@ -177,6 +177,24 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
 .cod{font-size:10px;color:var(--suave);margin-left:5px;white-space:nowrap}
 /* Costo y ganancia: dato interno, nunca sale al cliente */
 .margen{font-size:10px;color:var(--gris);font-weight:400;margin-top:2px;white-space:nowrap}
+
+/* ── Selector de productos para las placas ── */
+.grid-placa{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));
+  gap:9px;max-height:380px;overflow-y:auto;padding:2px}
+.mini{border:2px solid var(--linea);border-radius:10px;padding:7px;cursor:pointer;
+  position:relative;transition:all .12s;background:var(--blanco)}
+.mini:hover{border-color:var(--marca-borde)}
+.mini.on{border-color:var(--marca-2);background:var(--marca-claro)}
+.mini img{width:100%;height:74px;object-fit:contain;display:block}
+.mini-sin{width:100%;height:74px;background:var(--fondo);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--suave)}
+.mini-nom{font-size:10px;line-height:1.25;margin-top:5px;color:var(--texto);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mini-precio{font-size:11px;font-weight:800;color:var(--marca);margin-top:2px}
+.mini-tilde{position:absolute;top:5px;right:5px;width:19px;height:19px;
+  border-radius:50%;background:var(--marca-2);color:#fff;font-size:11px;
+  display:none;align-items:center;justify-content:center;font-weight:800}
+.mini.on .mini-tilde{display:flex}
 .total{display:flex;justify-content:space-between;font-size:16px;font-weight:800;
   padding-top:11px;margin-top:7px;border-top:1px solid var(--linea)}
 .total span:last-child{color:var(--marca)}
@@ -314,6 +332,81 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
       </div>
     </section>
 
+    <!-- Placas para redes -->
+    <section class="seccion" id="sec-placas">
+      <div class="titulo">Placas para redes</div>
+      <div class="subtitulo">Armá una imagen con los productos que elijas</div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-tit">1 · Elegí los productos</div>
+        <div class="chips" id="filtrosPlaca"></div>
+        <div class="buscador">
+          <input type="search" id="buscarPlaca" placeholder="Buscar por nombre o código">
+        </div>
+        <div id="gridPlaca" class="grid-placa"><div class="cargando">Cargando…</div></div>
+        <div class="fila-det" style="margin-top:10px" id="contadorPlaca">
+          Ninguno seleccionado
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-tit">2 · Elegí el formato</div>
+        <div class="campo">
+          <label>Medida</label>
+          <select id="plFormato">
+            <option value="1080x1080">Feed de Instagram — cuadrada</option>
+            <option value="1080x1920">Historia / Estado — vertical</option>
+            <option value="1080x1350">Feed vertical — 4:5</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Distribución</label>
+          <select id="plGrilla">
+            <option value="auto">Automática según cuántos elija</option>
+            <option value="1">1 producto grande</option>
+            <option value="2">2 productos</option>
+            <option value="4">4 productos (2×2)</option>
+            <option value="6">6 productos (2×3)</option>
+            <option value="9">9 productos (3×3)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Título</label>
+          <input type="text" id="plTitulo" value="Novedades" placeholder="Novedades, Ofertas, Día del Niño…">
+        </div>
+        <div class="campo">
+          <label>Bajada (opcional)</label>
+          <input type="text" id="plBajada" placeholder="Envíos a todo el país">
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="tarjeta-tit">3 · Qué mostrar</div>
+        <label class="check"><input type="checkbox" id="plNombre" checked><span>Nombre del producto</span></label>
+        <label class="check"><input type="checkbox" id="plPrecio" checked><span>Precio</span></label>
+        <label class="check"><input type="checkbox" id="plTachado" checked><span>Precio anterior tachado</span></label>
+        <label class="check"><input type="checkbox" id="plDescuento" checked><span>Porcentaje de descuento</span></label>
+        <label class="check"><input type="checkbox" id="plCodigo"><span>Código del producto</span></label>
+        <label class="check"><input type="checkbox" id="plCuotas"><span>Cuotas</span></label>
+        <label class="check"><input type="checkbox" id="plLogo" checked><span>Logo y datos del negocio</span></label>
+        <div class="campo" style="margin-top:12px">
+          <label>Color principal</label>
+          <input type="color" id="plColor" value="#15803d">
+        </div>
+      </div>
+
+      <button class="btn btn-full" id="btnGenerarPlaca">Generar la imagen</button>
+      <div id="avisoPlaca"></div>
+
+      <div id="previaPlaca" class="oculto" style="margin-top:16px">
+        <div class="tarjeta">
+          <div class="tarjeta-tit">Vista previa</div>
+          <canvas id="lienzoPlaca" style="width:100%;border-radius:10px;border:1px solid var(--linea)"></canvas>
+          <button class="btn btn-full" id="btnBajarPlaca" style="margin-top:12px">Descargar</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Configuración -->
     <section class="seccion" id="sec-config">
       <div class="titulo">Configuración</div>
@@ -379,6 +472,7 @@ const SECCIONES = [
   { id: "mensajes",  nombre: "Mensajes" },
   { id: "pagos",     nombre: "Pagos y envíos" },
   { id: "precios",   nombre: "Precios" },
+  { id: "placas",    nombre: "Placas" },
   { id: "config",    nombre: "Configuración" },
   { id: "clientes",  nombre: "Clientes" },
   { id: "cuenta",    nombre: "Mi cuenta" },
@@ -639,6 +733,7 @@ function irA(id) {
     mensajes:  cargarMensajes,
     pagos:     () => { cargarMedios(); cargarZonas(); },
     precios:   () => { cargarEstadoCatalogo(); cargarCatMarkup(); },
+    placas:    cargarPlacaProductos,
     config:    cargarConfig,
     clientes:  cargarClientes,
     cuenta:    cargarAuditoria,
@@ -1627,6 +1722,306 @@ async function leerMarkupGeneral() {
 }
 
 
+// ── Placas para redes ───────────────────────────────────────────
+const FILTROS_PLACA = [
+  { id: "nuevos",      nombre: "Nuevos" },
+  { id: "actualizados",nombre: "Cambiaron de precio" },
+  { id: "vistos",      nombre: "Más vistos" },
+  { id: "destacados",  nombre: "Destacados" },
+  { id: "todos",       nombre: "Todos" },
+];
+let filtroPlaca = "nuevos";
+let buscaPlaca = "";
+let productosPlaca = [];
+const elegidos = new Set();
+
+function pintarFiltrosPlaca() {
+  $("filtrosPlaca").innerHTML = FILTROS_PLACA
+    .map(f => `<span class="chip${f.id === filtroPlaca ? " on" : ""}" data-fp="${f.id}">${esc(f.nombre)}</span>`)
+    .join("");
+}
+
+async function cargarPlacaProductos() {
+  pintarFiltrosPlaca();
+  const cont = $("gridPlaca");
+  cont.innerHTML = '<div class="cargando">Cargando…</div>';
+  try {
+    const q = new URLSearchParams({ filtro: filtroPlaca });
+    if (buscaPlaca) q.set("q", buscaPlaca);
+    const r = await api("/panel/placas/productos?" + q);
+    if (!r.ok) throw new Error(r.error || "Error");
+
+    productosPlaca = r.productos;
+    if (!productosPlaca.length) {
+      cont.innerHTML = '<div class="vacio">No hay productos con ese filtro</div>';
+      return;
+    }
+    cont.innerHTML = productosPlaca.map(p => `
+      <div class="mini${elegidos.has(p.id) ? " on" : ""}" data-pl="${esc(p.id)}">
+        ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">`
+                : '<div class="mini-sin">sin foto</div>'}
+        <div class="mini-nom">${esc(p.nombre)}</div>
+        <div class="mini-precio">${plata(p.precio_desc)}</div>
+        <span class="mini-tilde">✓</span>
+      </div>`).join("");
+    actualizarContador();
+  } catch (e) {
+    cont.innerHTML = `<div class="vacio">${esc(e.message)}</div>`;
+  }
+}
+
+function actualizarContador() {
+  const n = elegidos.size;
+  $("contadorPlaca").textContent = n === 0
+    ? "Ninguno seleccionado"
+    : `${n} producto${n === 1 ? "" : "s"} seleccionado${n === 1 ? "" : "s"}`;
+}
+
+// Carga una imagen respetando CORS, para poder dibujarla en el canvas
+function cargarImagen(url) {
+  return new Promise(resolve => {
+    if (!url) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+function grillaPara(n, alto, ancho) {
+  // Columnas y filas segun cuantos productos entran
+  if (n === 1) return { cols: 1, filas: 1 };
+  if (n === 2) return alto > ancho ? { cols: 1, filas: 2 } : { cols: 2, filas: 1 };
+  if (n <= 4)  return { cols: 2, filas: 2 };
+  if (n <= 6)  return alto > ancho ? { cols: 2, filas: 3 } : { cols: 3, filas: 2 };
+  return { cols: 3, filas: 3 };
+}
+
+async function generarPlaca() {
+  const ids = [...elegidos];
+  if (!ids.length) { avisar("avisoPlaca", "Elegí al menos un producto", false); return; }
+
+  const btn = $("btnGenerarPlaca");
+  btn.disabled = true; btn.textContent = "Generando…";
+
+  try {
+    const [ancho, alto] = $("plFormato").value.split("x").map(Number);
+    const modo = $("plGrilla").value;
+    let items = ids.map(id => productosPlaca.find(p => p.id === id)).filter(Boolean);
+    if (modo !== "auto") items = items.slice(0, Number(modo));
+
+    const { cols, filas } = modo === "auto"
+      ? grillaPara(items.length, alto, ancho)
+      : grillaPara(Number(modo), alto, ancho);
+    items = items.slice(0, cols * filas);
+
+    const color = $("plColor").value;
+    const verNombre = $("plNombre").checked;
+    const verPrecio = $("plPrecio").checked;
+    const verTachado = $("plTachado").checked;
+    const verDesc = $("plDescuento").checked;
+    const verCodigo = $("plCodigo").checked;
+    const verCuotas = $("plCuotas").checked;
+    const verLogo = $("plLogo").checked;
+    const titulo = $("plTitulo").value.trim();
+    const bajada = $("plBajada").value.trim();
+
+    const c = $("lienzoPlaca");
+    c.width = ancho; c.height = alto;
+    const x = c.getContext("2d");
+
+    // Fondo
+    x.fillStyle = "#ffffff";
+    x.fillRect(0, 0, ancho, alto);
+
+    // Franja superior con el título
+    const altoCab = titulo ? Math.round(alto * 0.13) : 0;
+    if (titulo) {
+      x.fillStyle = color;
+      x.fillRect(0, 0, ancho, altoCab);
+      x.fillStyle = "#ffffff";
+      x.textAlign = "center";
+      x.font = `800 ${Math.round(altoCab * 0.38)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
+      x.fillText(titulo.toUpperCase(), ancho / 2, altoCab * (bajada ? 0.45 : 0.62));
+      if (bajada) {
+        x.font = `500 ${Math.round(altoCab * 0.19)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
+        x.fillStyle = "rgba(255,255,255,.88)";
+        x.fillText(bajada, ancho / 2, altoCab * 0.74);
+      }
+    }
+
+    const altoPie = verLogo ? Math.round(alto * 0.09) : 0;
+    const margen = Math.round(ancho * 0.035);
+    const zonaY = altoCab + margen;
+    const zonaAlto = alto - altoCab - altoPie - margen * 2;
+    const celdaW = (ancho - margen * (cols + 1)) / cols;
+    const celdaH = (zonaAlto - margen * (filas - 1)) / filas;
+
+    // Cada producto
+    for (let i = 0; i < items.length; i++) {
+      const p = items[i];
+      const col = i % cols, fila = Math.floor(i / cols);
+      const cx = margen + col * (celdaW + margen);
+      const cy = zonaY + fila * (celdaH + margen);
+
+      // Tarjeta
+      x.fillStyle = "#ffffff";
+      x.strokeStyle = "#e9e7f0";
+      x.lineWidth = 2;
+      const r = 18;
+      x.beginPath();
+      x.roundRect(cx, cy, celdaW, celdaH, r);
+      x.fill(); x.stroke();
+
+      // Alto reservado para los textos
+      let altoTexto = 0;
+      if (verNombre) altoTexto += celdaH * 0.13;
+      if (verPrecio) altoTexto += celdaH * 0.14;
+      if (verTachado) altoTexto += celdaH * 0.07;
+      if (verCuotas) altoTexto += celdaH * 0.06;
+      if (verCodigo) altoTexto += celdaH * 0.05;
+      altoTexto = Math.max(altoTexto, celdaH * 0.22);
+      const imgH = celdaH - altoTexto - 20;
+
+      // Foto
+      const img = await cargarImagen(p.img);
+      if (img) {
+        const escala = Math.min((celdaW - 30) / img.width, imgH / img.height);
+        const w = img.width * escala, h = img.height * escala;
+        x.drawImage(img, cx + (celdaW - w) / 2, cy + 14 + (imgH - h) / 2, w, h);
+      } else {
+        x.fillStyle = "#f4f4f7";
+        x.beginPath();
+        x.roundRect(cx + 15, cy + 14, celdaW - 30, imgH, 10);
+        x.fill();
+      }
+
+      // Badge de descuento
+      if (verDesc && p.pct) {
+        const bw = celdaW * 0.28, bh = celdaH * 0.075;
+        x.fillStyle = "#dc2626";
+        x.beginPath();
+        x.roundRect(cx + 14, cy + 14, bw, bh, 8);
+        x.fill();
+        x.fillStyle = "#fff";
+        x.textAlign = "center";
+        x.font = `800 ${Math.round(bh * 0.55)}px -apple-system, sans-serif`;
+        x.fillText(`-${p.pct}%`, cx + 14 + bw / 2, cy + 14 + bh * 0.7);
+      }
+
+      // Textos
+      let ty = cy + celdaH - altoTexto;
+      x.textAlign = "center";
+
+      if (verNombre) {
+        x.fillStyle = "#1e1b30";
+        const fs = Math.round(celdaH * 0.055);
+        x.font = `700 ${fs}px -apple-system, "Segoe UI", Roboto, sans-serif`;
+        let nom = p.nombre;
+        while (x.measureText(nom).width > celdaW - 24 && nom.length > 6) {
+          nom = nom.slice(0, -2);
+        }
+        if (nom !== p.nombre) nom += "…";
+        ty += fs;
+        x.fillText(nom, cx + celdaW / 2, ty);
+        ty += 6;
+      }
+
+      if (verTachado) {
+        const fs = Math.round(celdaH * 0.042);
+        x.font = `400 ${fs}px -apple-system, sans-serif`;
+        x.fillStyle = "#9ca3af";
+        ty += fs;
+        const txt = plata(p.precio);
+        x.fillText(txt, cx + celdaW / 2, ty);
+        const w = x.measureText(txt).width;
+        x.strokeStyle = "#9ca3af";
+        x.lineWidth = 1.6;
+        x.beginPath();
+        x.moveTo(cx + celdaW / 2 - w / 2, ty - fs * 0.3);
+        x.lineTo(cx + celdaW / 2 + w / 2, ty - fs * 0.3);
+        x.stroke();
+        ty += 4;
+      }
+
+      if (verPrecio) {
+        const fs = Math.round(celdaH * 0.085);
+        x.font = `800 ${fs}px -apple-system, "Segoe UI", Roboto, sans-serif`;
+        x.fillStyle = color;
+        ty += fs;
+        x.fillText(plata(p.precio_desc), cx + celdaW / 2, ty);
+        ty += 4;
+      }
+
+      if (verCuotas && p.precio >= 50000) {
+        const fs = Math.round(celdaH * 0.036);
+        x.font = `500 ${fs}px -apple-system, sans-serif`;
+        x.fillStyle = "#6b7280";
+        ty += fs + 2;
+        x.fillText(`6 cuotas de ${plata(Math.round(p.precio / 6))}`, cx + celdaW / 2, ty);
+      }
+
+      if (verCodigo) {
+        const fs = Math.round(celdaH * 0.032);
+        x.font = `500 ${fs}px monospace`;
+        x.fillStyle = "#9ca3af";
+        ty += fs + 4;
+        x.fillText(p.id, cx + celdaW / 2, ty);
+      }
+    }
+
+    // Pie con el logo y los datos
+    if (verLogo) {
+      const py = alto - altoPie;
+      x.fillStyle = color;
+      x.fillRect(0, py, ancho, altoPie);
+
+      const lw = Math.round(altoPie * 0.52);
+      x.fillStyle = "#ffffff";
+      x.beginPath();
+      x.roundRect(margen, py + (altoPie - lw) / 2, lw, lw, 10);
+      x.fill();
+      x.fillStyle = color;
+      x.textAlign = "center";
+      x.font = `800 ${Math.round(lw * 0.4)}px -apple-system, sans-serif`;
+      x.fillText("JR", margen + lw / 2, py + altoPie / 2 + lw * 0.14);
+
+      x.textAlign = "left";
+      x.fillStyle = "#ffffff";
+      x.font = `800 ${Math.round(altoPie * 0.26)}px -apple-system, sans-serif`;
+      x.fillText("JR Shop", margen + lw + 18, py + altoPie * 0.44);
+      x.font = `500 ${Math.round(altoPie * 0.19)}px -apple-system, sans-serif`;
+      x.fillStyle = "rgba(255,255,255,.9)";
+      x.fillText("www.jrshop.com.ar", margen + lw + 18, py + altoPie * 0.72);
+
+      x.textAlign = "right";
+      x.font = `700 ${Math.round(altoPie * 0.2)}px -apple-system, sans-serif`;
+      x.fillStyle = "#ffffff";
+      x.fillText("381 223-5528", ancho - margen, py + altoPie * 0.58);
+    }
+
+    $("previaPlaca").classList.remove("oculto");
+    $("previaPlaca").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    avisar("avisoPlaca", `Imagen de ${ancho}×${alto} lista`);
+  } catch (e) {
+    avisar("avisoPlaca", e.message, false);
+  } finally {
+    btn.disabled = false; btn.textContent = "Generar la imagen";
+  }
+}
+
+function bajarPlaca() {
+  const c = $("lienzoPlaca");
+  const a = document.createElement("a");
+  const t = ($("plTitulo").value.trim() || "placa").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
+  a.download = `jrshop-${t}-${c.width}x${c.height}.jpg`;
+  a.href = c.toDataURL("image/jpeg", 0.92);
+  a.click();
+}
+
+
 // ── Clientes ────────────────────────────────────────────────────
 async function cargarClientes() {
   const cont = $("listaClientes");
@@ -1714,6 +2109,24 @@ $("btnNuevoMensaje").onclick = nuevoMensaje;
 $("btnCambiarPass").onclick = cambiarPassword;
 $("btnRegenerar").onclick = regenerarCatalogo;
 $("btnGuardarMarkups").onclick = guardarMarkups;
+$("btnGenerarPlaca").onclick = generarPlaca;
+$("btnBajarPlaca").onclick = bajarPlaca;
+
+$("filtrosPlaca").addEventListener("click", e => {
+  const c = e.target.closest(".chip");
+  if (!c) return;
+  filtroPlaca = c.dataset.fp;
+  cargarPlacaProductos();
+});
+
+$("gridPlaca").addEventListener("click", e => {
+  const m = e.target.closest(".mini");
+  if (!m) return;
+  const id = m.dataset.pl;
+  if (elegidos.has(id)) { elegidos.delete(id); m.classList.remove("on"); }
+  else { elegidos.add(id); m.classList.add("on"); }
+  actualizarContador();
+});
 
 $("nav").addEventListener("click", e => {
   const b = e.target.closest(".nav-item");
@@ -1788,6 +2201,7 @@ function conRetraso(input, alCambiar) {
 conRetraso($("buscarPedido"),  v => { buscaPedido = v;  cargarPedidos(); });
 conRetraso($("buscarProd"),    v => { buscaProd = v;    cargarProductos(); });
 conRetraso($("buscarCliente"), v => { buscaCliente = v; cargarClientes(); });
+conRetraso($("buscarPlaca"),   v => { buscaPlaca = v;   cargarPlacaProductos(); });
 
 // ── Arranque ────────────────────────────────────────────────────
 (async () => {
