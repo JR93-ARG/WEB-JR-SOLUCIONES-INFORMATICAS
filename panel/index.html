@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Panel — JR Shop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1777,7 +1780,76 @@ function actualizarContador() {
     : `${n} producto${n === 1 ? "" : "s"} seleccionado${n === 1 ? "" : "s"}`;
 }
 
-// Carga una imagen respetando CORS, para poder dibujarla en el canvas
+// ── Tema de las placas ──────────────────────────────────────────
+const TEMA = {
+  bg: "#f7f7fb", card: "#ffffff",
+  primary: "#15803d", secondary: "#16a34a", primarySoft: "#f0fdf4",
+  text: "#1e1b30", text2: "#4b5563", muted: "#9ca3af",
+  line: "#e9e7f0", discount: "#dc2626",
+  outerMargin: 40, gridGap: 20, cardRadius: 22, font: "Inter",
+};
+
+// Estructura de cada formato: alturas fijas en px
+const LAYOUTS = {
+  "1080x1080": { headerH: 150, gridY: 170, gridH: 770, footerY: 960, footerH: 120,
+                 tituloFs: 64, bajadaFs: 26, logoPx: 72, radio: 14 },
+  "1080x1350": { headerH: 180, gridY: 200, gridH: 990, footerY: 1210, footerH: 140,
+                 tituloFs: 68, bajadaFs: 28, logoPx: 80, radio: 16 },
+  "1080x1920": { headerH: 240, gridY: 390, gridH: 1230, footerY: 1650, footerH: 170,
+                 tituloFs: 82, bajadaFs: 34, logoPx: 92, radio: 18, safeTop: 120 },
+};
+
+// Columnas y filas segun formato y cantidad. En cuadrado 6 va en 3x2
+// porque hay poca altura; en los verticales conviene 2x3.
+function grillaDe(formato, n) {
+  const vertical = formato !== "1080x1080";
+  if (n === 1) return { cols: 1, filas: 1 };
+  if (n === 2) return vertical && formato === "1080x1920"
+    ? { cols: 1, filas: 2 } : { cols: 2, filas: 1 };
+  if (n <= 4) return { cols: 2, filas: 2 };
+  if (n <= 6) return vertical ? { cols: 2, filas: 3 } : { cols: 3, filas: 2 };
+  return { cols: 3, filas: 3 };
+}
+
+const clamp = (min, v, max) => Math.max(min, Math.min(v, max));
+
+// Alto de la foto segun cuantos productos entran: con 9 no puede ocupar
+// el 60% porque el precio quedaria invisible.
+function altoFoto(cardH, n) {
+  if (n <= 2) return cardH * 0.56;
+  if (n <= 4) return cardH * 0.52;
+  if (n <= 6) return cardH * 0.48;
+  return cardH * 0.44;
+}
+
+// Parte el nombre en dos lineas como maximo, cortando por palabras
+function dosLineas(x, texto, maxW, fs) {
+  x.font = `700 ${fs}px ${TEMA.font}`;
+  if (x.measureText(texto).width <= maxW) return [texto];
+  const palabras = texto.split(/\s+/);
+  let l1 = "", i = 0;
+  while (i < palabras.length) {
+    const prueba = l1 ? l1 + " " + palabras[i] : palabras[i];
+    if (x.measureText(prueba).width > maxW) break;
+    l1 = prueba; i++;
+  }
+  if (!l1) { l1 = palabras[0] || texto; i = 1; }
+  let l2 = palabras.slice(i).join(" ");
+  if (!l2) return [l1];
+  while (x.measureText(l2 + "…").width > maxW && l2.length > 3) l2 = l2.slice(0, -1);
+  return [l1, l2 + "…"];
+}
+
+// Blanco o tinta segun el contraste del color elegido
+function textoSobre(hex) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.55 ? TEMA.text : "#ffffff";
+}
+
 function cargarImagen(url) {
   return new Promise(resolve => {
     if (!url) return resolve(null);
@@ -1789,15 +1861,6 @@ function cargarImagen(url) {
   });
 }
 
-function grillaPara(n, alto, ancho) {
-  // Columnas y filas segun cuantos productos entran
-  if (n === 1) return { cols: 1, filas: 1 };
-  if (n === 2) return alto > ancho ? { cols: 1, filas: 2 } : { cols: 2, filas: 1 };
-  if (n <= 4)  return { cols: 2, filas: 2 };
-  if (n <= 6)  return alto > ancho ? { cols: 2, filas: 3 } : { cols: 3, filas: 2 };
-  return { cols: 3, filas: 3 };
-}
-
 async function generarPlaca() {
   const ids = [...elegidos];
   if (!ids.length) { avisar("avisoPlaca", "Elegí al menos un producto", false); return; }
@@ -1806,24 +1869,30 @@ async function generarPlaca() {
   btn.disabled = true; btn.textContent = "Generando…";
 
   try {
-    const [ancho, alto] = $("plFormato").value.split("x").map(Number);
-    const modo = $("plGrilla").value;
-    let items = ids.map(id => productosPlaca.find(p => p.id === id)).filter(Boolean);
-    if (modo !== "auto") items = items.slice(0, Number(modo));
+    // Inter tiene que estar lista antes de medir texto en el canvas
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
 
-    const { cols, filas } = modo === "auto"
-      ? grillaPara(items.length, alto, ancho)
-      : grillaPara(Number(modo), alto, ancho);
+    const formato = $("plFormato").value;
+    const [ancho, alto] = formato.split("x").map(Number);
+    const L = LAYOUTS[formato];
+    const modo = $("plGrilla").value;
+
+    let items = ids.map(id => productosPlaca.find(p => p.id === id)).filter(Boolean);
+    const cantidad = modo === "auto" ? items.length : Number(modo);
+    const { cols, filas } = grillaDe(formato, Math.min(cantidad, 9));
     items = items.slice(0, cols * filas);
+    const n = items.length;
 
     const color = $("plColor").value;
-    const verNombre = $("plNombre").checked;
-    const verPrecio = $("plPrecio").checked;
-    const verTachado = $("plTachado").checked;
-    const verDesc = $("plDescuento").checked;
-    const verCodigo = $("plCodigo").checked;
-    const verCuotas = $("plCuotas").checked;
-    const verLogo = $("plLogo").checked;
+    const ver = {
+      nombre:  $("plNombre").checked,
+      precio:  $("plPrecio").checked,
+      tachado: $("plTachado").checked,
+      desc:    $("plDescuento").checked,
+      codigo:  $("plCodigo").checked,
+      cuotas:  $("plCuotas").checked,
+      logo:    $("plLogo").checked,
+    };
     const titulo = $("plTitulo").value.trim();
     const bajada = $("plBajada").value.trim();
 
@@ -1831,185 +1900,250 @@ async function generarPlaca() {
     c.width = ancho; c.height = alto;
     const x = c.getContext("2d");
 
-    // Fondo
-    x.fillStyle = "#ffffff";
+    // Fondo gris muy claro: separa las fotos de fondo blanco de la placa
+    x.fillStyle = TEMA.bg;
     x.fillRect(0, 0, ancho, alto);
 
-    // Franja superior con el título
-    const altoCab = titulo ? Math.round(alto * 0.13) : 0;
+    const M = TEMA.outerMargin;
+    const util = ancho - M * 2;
+
+    // ── Encabezado ──
+    let gridY = L.gridY, gridH = L.gridH;
     if (titulo) {
+      const hy = L.safeTop || 0;
       x.fillStyle = color;
-      x.fillRect(0, 0, ancho, altoCab);
-      x.fillStyle = "#ffffff";
+      x.fillRect(0, hy, ancho, L.headerH);
+
       x.textAlign = "center";
-      x.font = `800 ${Math.round(altoCab * 0.38)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
-      x.fillText(titulo.toUpperCase(), ancho / 2, altoCab * (bajada ? 0.45 : 0.62));
+      x.fillStyle = textoSobre(color);
+      x.font = `900 ${L.tituloFs}px ${TEMA.font}`;
+      const ty = hy + (bajada ? L.headerH * 0.44 : L.headerH * 0.58) + L.tituloFs * 0.34;
+      x.fillText(titulo.toUpperCase(), ancho / 2, ty);
+
+      // Línea de acento corta debajo del título
+      const lw = 72, lh = 6;
+      x.fillStyle = TEMA.secondary;
+      x.beginPath();
+      x.roundRect(ancho / 2 - lw / 2, ty + L.tituloFs * 0.28, lw, lh, 3);
+      x.fill();
+
       if (bajada) {
-        x.font = `500 ${Math.round(altoCab * 0.19)}px -apple-system, "Segoe UI", Roboto, sans-serif`;
-        x.fillStyle = "rgba(255,255,255,.88)";
-        x.fillText(bajada, ancho / 2, altoCab * 0.74);
+        x.font = `500 ${L.bajadaFs}px ${TEMA.font}`;
+        x.fillStyle = textoSobre(color) === "#ffffff"
+          ? "rgba(255,255,255,.85)" : "rgba(30,27,48,.7)";
+        x.fillText(bajada, ancho / 2, ty + L.tituloFs * 0.28 + lh + L.bajadaFs + 12);
       }
+    } else {
+      // Sin título, la grilla gana ese espacio
+      gridY = (L.safeTop || 0) + M;
+      gridH = L.gridH + L.headerH;
     }
+    if (!ver.logo) gridH += L.footerH;
 
-    const altoPie = verLogo ? Math.round(alto * 0.09) : 0;
-    const margen = Math.round(ancho * 0.035);
-    const zonaY = altoCab + margen;
-    const zonaAlto = alto - altoCab - altoPie - margen * 2;
-    const celdaW = (ancho - margen * (cols + 1)) / cols;
-    const celdaH = (zonaAlto - margen * (filas - 1)) / filas;
+    // ── Tarjetas ──
+    const gap = n >= 9 ? 16 : n >= 6 ? 18 : 20;
+    const cardW = (util - gap * (cols - 1)) / cols;
+    const cardH = (gridH - gap * (filas - 1)) / filas;
+    const radio = n <= 2 ? 26 : n <= 4 ? 22 : 18;
+    const padding = n <= 4 ? 22 : 16;
 
-    // Cada producto
-    for (let i = 0; i < items.length; i++) {
+    for (let i = 0; i < n; i++) {
       const p = items[i];
       const col = i % cols, fila = Math.floor(i / cols);
-      const cx = margen + col * (celdaW + margen);
-      const cy = zonaY + fila * (celdaH + margen);
+      // Una sola tarjeta se centra
+      const offX = (n === 1) ? (util - cardW * 0.86) / 2 : 0;
+      const cw = (n === 1) ? cardW * 0.86 : cardW;
+      const cx = M + offX + col * (cardW + gap);
+      const cy = gridY + fila * (cardH + gap);
 
-      // Tarjeta
-      x.fillStyle = "#ffffff";
-      x.strokeStyle = "#e9e7f0";
-      x.lineWidth = 2;
-      const r = 18;
+      // Sombra suave, no el halo gris grande de siempre
+      x.save();
+      x.shadowColor = "rgba(30,27,48,.08)";
+      x.shadowBlur = n >= 9 ? 8 : 18;
+      x.shadowOffsetY = n >= 9 ? 3 : 7;
+      x.fillStyle = TEMA.card;
       x.beginPath();
-      x.roundRect(cx, cy, celdaW, celdaH, r);
-      x.fill(); x.stroke();
+      x.roundRect(cx, cy, cw, cardH, radio);
+      x.fill();
+      x.restore();
 
-      // Alto reservado para los textos
-      let altoTexto = 0;
-      if (verNombre) altoTexto += celdaH * 0.13;
-      if (verPrecio) altoTexto += celdaH * 0.14;
-      if (verTachado) altoTexto += celdaH * 0.07;
-      if (verCuotas) altoTexto += celdaH * 0.06;
-      if (verCodigo) altoTexto += celdaH * 0.05;
-      altoTexto = Math.max(altoTexto, celdaH * 0.22);
-      const imgH = celdaH - altoTexto - 20;
+      x.strokeStyle = TEMA.line;
+      x.lineWidth = 2;
+      x.beginPath();
+      x.roundRect(cx, cy, cw, cardH, radio);
+      x.stroke();
 
-      // Foto
+      // ── Foto ──
+      const fotoH = altoFoto(cardH, n);
+      const padImg = Math.max(12, cw * 0.045);
+      const boxX = cx + padding, boxY = cy + padding;
+      const boxW = cw - padding * 2, boxH = fotoH;
+
       const img = await cargarImagen(p.img);
       if (img) {
-        const escala = Math.min((celdaW - 30) / img.width, imgH / img.height);
+        const ratio = img.width / img.height;
+        let maxW = boxW - padImg, maxH = boxH - padImg;
+        if (ratio > 1.8)  maxW = boxW * 0.92;
+        if (ratio < 0.55) maxH = boxH * 0.90;
+        // No agrandar demasiado una foto chica: se vería pixelada
+        const escala = Math.min(maxW / img.width, maxH / img.height, 1.15);
         const w = img.width * escala, h = img.height * escala;
-        x.drawImage(img, cx + (celdaW - w) / 2, cy + 14 + (imgH - h) / 2, w, h);
+        x.drawImage(img, boxX + (boxW - w) / 2, boxY + (boxH - h) / 2, w, h);
       } else {
-        x.fillStyle = "#f4f4f7";
+        x.fillStyle = "#fafafc";
         x.beginPath();
-        x.roundRect(cx + 15, cy + 14, celdaW - 30, imgH, 10);
+        x.roundRect(boxX, boxY, boxW, boxH, 10);
         x.fill();
       }
 
-      // Badge de descuento
-      if (verDesc && p.pct) {
-        const bw = celdaW * 0.28, bh = celdaH * 0.075;
-        x.fillStyle = "#dc2626";
+      // ── Badge de descuento ──
+      if (ver.desc && p.pct) {
+        const bw = clamp(80, cw * 0.29, 130);
+        const bh = clamp(32, cardH * 0.085, 48);
+        x.fillStyle = TEMA.discount;
         x.beginPath();
-        x.roundRect(cx + 14, cy + 14, bw, bh, 8);
+        x.roundRect(cx + 14, cy + 14, bw, bh, 10);
         x.fill();
-        x.fillStyle = "#fff";
+        x.fillStyle = "#ffffff";
         x.textAlign = "center";
-        x.font = `800 ${Math.round(bh * 0.55)}px -apple-system, sans-serif`;
-        x.fillText(`-${p.pct}%`, cx + 14 + bw / 2, cy + 14 + bh * 0.7);
+        x.font = `800 ${Math.round(bh * 0.46)}px ${TEMA.font}`;
+        x.fillText(`-${p.pct}%`, cx + 14 + bw / 2, cy + 14 + bh * 0.66);
       }
 
-      // Textos
-      let ty = cy + celdaH - altoTexto;
-      x.textAlign = "center";
+      // ── Textos: cursor vertical, sin huecos por campos apagados ──
+      const fsNombre  = clamp(21, cw * 0.067, 38);
+      const fsPrecio  = clamp(28, cw * 0.105, 64);
+      const fsTachado = Math.max(16, fsPrecio * 0.46);   // piso legible
+      const fsCuotas  = clamp(18, cw * 0.054, 28);
+      const fsCodigo  = clamp(15, cw * 0.043, 22);
 
-      if (verNombre) {
-        x.fillStyle = "#1e1b30";
-        const fs = Math.round(celdaH * 0.055);
-        x.font = `700 ${fs}px -apple-system, "Segoe UI", Roboto, sans-serif`;
-        let nom = p.nombre;
-        while (x.measureText(nom).width > celdaW - 24 && nom.length > 6) {
-          nom = nom.slice(0, -2);
+      let ty = cy + padding + fotoH + 14;
+      x.textAlign = "center";
+      const centro = cx + cw / 2;
+      const compacto = n >= 9;
+
+      if (ver.nombre) {
+        const lineas = dosLineas(x, p.nombre, cw - padding * 2, fsNombre);
+        x.fillStyle = TEMA.text;
+        x.font = `700 ${fsNombre}px ${TEMA.font}`;
+        for (const ln of lineas) {
+          ty += fsNombre;
+          x.fillText(ln, centro, ty);
+          ty += fsNombre * 0.13;
         }
-        if (nom !== p.nombre) nom += "…";
-        ty += fs;
-        x.fillText(nom, cx + celdaW / 2, ty);
+        ty += 8;
+      }
+
+      // En modo compacto, tachado y precio comparten linea
+      if (compacto && ver.tachado && ver.precio) {
+        ty += fsPrecio;
+        const txtP = plata(p.precio_desc), txtT = plata(p.precio);
+        x.font = `500 ${fsTachado}px ${TEMA.font}`;
+        const wT = x.measureText(txtT).width;
+        x.font = `800 ${fsPrecio}px ${TEMA.font}`;
+        const wP = x.measureText(txtP).width;
+        const total = wT + 10 + wP;
+        let px = centro - total / 2;
+
+        x.textAlign = "left";
+        x.font = `500 ${fsTachado}px ${TEMA.font}`;
+        x.fillStyle = TEMA.muted;
+        x.fillText(txtT, px, ty);
+        x.strokeStyle = TEMA.muted; x.lineWidth = 2;
+        x.beginPath();
+        x.moveTo(px, ty - fsTachado * 0.32);
+        x.lineTo(px + wT, ty - fsTachado * 0.32);
+        x.stroke();
+
+        x.font = `800 ${fsPrecio}px ${TEMA.font}`;
+        x.fillStyle = color;
+        x.fillText(txtP, px + wT + 10, ty);
+        x.textAlign = "center";
+        ty += 7;
+      } else {
+        if (ver.tachado) {
+          ty += fsTachado;
+          x.font = `500 ${fsTachado}px ${TEMA.font}`;
+          x.fillStyle = TEMA.muted;
+          const t = plata(p.precio);
+          x.fillText(t, centro, ty);
+          const w = x.measureText(t).width;
+          x.strokeStyle = TEMA.muted; x.lineWidth = 2;
+          x.beginPath();
+          x.moveTo(centro - w / 2, ty - fsTachado * 0.32);
+          x.lineTo(centro + w / 2, ty - fsTachado * 0.32);
+          x.stroke();
+          ty += 3;
+        }
+        if (ver.precio) {
+          // Sin nombre ni tachado, el precio puede crecer
+          const fs = (!ver.nombre && !ver.tachado) ? fsPrecio * 1.12 : fsPrecio;
+          ty += fs;
+          x.font = `800 ${fs}px ${TEMA.font}`;
+          x.fillStyle = color;
+          x.fillText(plata(p.precio_desc), centro, ty);
+          ty += 7;
+        }
+      }
+
+      if (ver.cuotas && p.precio >= 50000) {
+        ty += fsCuotas;
+        x.font = `600 ${fsCuotas}px ${TEMA.font}`;
+        x.fillStyle = TEMA.text2;
+        x.fillText(`6 cuotas de ${plata(Math.round(p.precio / 6))}`, centro, ty);
         ty += 6;
       }
 
-      if (verTachado) {
-        const fs = Math.round(celdaH * 0.042);
-        x.font = `400 ${fs}px -apple-system, sans-serif`;
-        x.fillStyle = "#9ca3af";
-        ty += fs;
-        const txt = plata(p.precio);
-        x.fillText(txt, cx + celdaW / 2, ty);
-        const w = x.measureText(txt).width;
-        x.strokeStyle = "#9ca3af";
-        x.lineWidth = 1.6;
-        x.beginPath();
-        x.moveTo(cx + celdaW / 2 - w / 2, ty - fs * 0.3);
-        x.lineTo(cx + celdaW / 2 + w / 2, ty - fs * 0.3);
-        x.stroke();
-        ty += 4;
-      }
-
-      if (verPrecio) {
-        const fs = Math.round(celdaH * 0.085);
-        x.font = `800 ${fs}px -apple-system, "Segoe UI", Roboto, sans-serif`;
-        x.fillStyle = color;
-        ty += fs;
-        x.fillText(plata(p.precio_desc), cx + celdaW / 2, ty);
-        ty += 4;
-      }
-
-      if (verCuotas && p.precio >= 50000) {
-        const fs = Math.round(celdaH * 0.036);
-        x.font = `500 ${fs}px -apple-system, sans-serif`;
-        x.fillStyle = "#6b7280";
-        ty += fs + 2;
-        x.fillText(`6 cuotas de ${plata(Math.round(p.precio / 6))}`, cx + celdaW / 2, ty);
-      }
-
-      if (verCodigo) {
-        const fs = Math.round(celdaH * 0.032);
-        x.font = `500 ${fs}px monospace`;
-        x.fillStyle = "#9ca3af";
-        ty += fs + 4;
-        x.fillText(p.id, cx + celdaW / 2, ty);
+      if (ver.codigo) {
+        ty += fsCodigo;
+        x.font = `500 ${fsCodigo}px ${TEMA.font}`;
+        x.fillStyle = TEMA.muted;
+        x.fillText(p.id, centro, ty);
       }
     }
 
-    // Pie con el logo y los datos
-    if (verLogo) {
-      const py = alto - altoPie;
+    // ── Pie ──
+    if (ver.logo) {
+      const py = L.footerY, fh = L.footerH;
       x.fillStyle = color;
-      x.fillRect(0, py, ancho, altoPie);
+      x.fillRect(0, py, ancho, fh);
 
-      const lw = Math.round(altoPie * 0.52);
+      const lp = L.logoPx;
       x.fillStyle = "#ffffff";
       x.beginPath();
-      x.roundRect(margen, py + (altoPie - lw) / 2, lw, lw, 10);
+      x.roundRect(M, py + (fh - lp) / 2, lp, lp, L.radio);
       x.fill();
       x.fillStyle = color;
       x.textAlign = "center";
-      x.font = `800 ${Math.round(lw * 0.4)}px -apple-system, sans-serif`;
-      x.fillText("JR", margen + lw / 2, py + altoPie / 2 + lw * 0.14);
+      x.font = `900 ${Math.round(lp * 0.44)}px ${TEMA.font}`;
+      x.fillText("JR", M + lp / 2, py + fh / 2 + lp * 0.16);
 
+      const tOn = textoSobre(color);
+      const esc2 = fh / 120;
       x.textAlign = "left";
-      x.fillStyle = "#ffffff";
-      x.font = `800 ${Math.round(altoPie * 0.26)}px -apple-system, sans-serif`;
-      x.fillText("JR Shop", margen + lw + 18, py + altoPie * 0.44);
-      x.font = `500 ${Math.round(altoPie * 0.19)}px -apple-system, sans-serif`;
-      x.fillStyle = "rgba(255,255,255,.9)";
-      x.fillText("www.jrshop.com.ar", margen + lw + 18, py + altoPie * 0.72);
+      x.fillStyle = tOn;
+      x.font = `800 ${Math.round(31 * esc2)}px ${TEMA.font}`;
+      x.fillText("JR Shop", M + lp + 20, py + fh * 0.44);
+      x.font = `500 ${Math.round(24 * esc2)}px ${TEMA.font}`;
+      x.fillStyle = tOn === "#ffffff" ? "rgba(255,255,255,.88)" : "rgba(30,27,48,.7)";
+      x.fillText("www.jrshop.com.ar", M + lp + 20, py + fh * 0.74);
 
       x.textAlign = "right";
-      x.font = `700 ${Math.round(altoPie * 0.2)}px -apple-system, sans-serif`;
-      x.fillStyle = "#ffffff";
-      x.fillText("381 223-5528", ancho - margen, py + altoPie * 0.58);
+      x.fillStyle = tOn;
+      x.font = `700 ${Math.round(29 * esc2)}px ${TEMA.font}`;
+      x.fillText("381 223-5528", ancho - M, py + fh * 0.6);
     }
 
     $("previaPlaca").classList.remove("oculto");
     $("previaPlaca").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    avisar("avisoPlaca", `Imagen de ${ancho}×${alto} lista`);
+    avisar("avisoPlaca", `${n} producto${n === 1 ? "" : "s"} · ${ancho}×${alto}`);
   } catch (e) {
     avisar("avisoPlaca", e.message, false);
   } finally {
     btn.disabled = false; btn.textContent = "Generar la imagen";
   }
 }
+
 
 function bajarPlaca() {
   const c = $("lienzoPlaca");
