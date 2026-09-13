@@ -391,7 +391,8 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
         <label class="check"><input type="checkbox" id="plDescuento" checked><span>Porcentaje de descuento</span></label>
         <label class="check"><input type="checkbox" id="plCodigo"><span>Código del producto</span></label>
         <label class="check"><input type="checkbox" id="plCuotas"><span>Cuotas</span></label>
-        <label class="check"><input type="checkbox" id="plLogo" checked><span>Logo y datos del negocio</span></label>
+        <label class="check"><input type="checkbox" id="plCarrito" checked><span>Ícono de carrito</span></label>
+        <label class="check"><input type="checkbox" id="plLogo" checked><span>Pie con logo, envíos y WhatsApp</span></label>
         <div class="campo" style="margin-top:12px">
           <label>Color principal</label>
           <input type="color" id="plColor" value="#15803d">
@@ -1791,11 +1792,11 @@ const TEMA = {
 
 // Estructura de cada formato: alturas fijas en px
 const LAYOUTS = {
-  "1080x1080": { headerH: 150, gridY: 170, gridH: 770, footerY: 960, footerH: 120,
+  "1080x1080": { headerH: 150, gridY: 176, gridH: 754, footerY: 950, footerH: 96,
                  tituloFs: 64, bajadaFs: 26, logoPx: 72, radio: 14 },
-  "1080x1350": { headerH: 180, gridY: 200, gridH: 990, footerY: 1210, footerH: 140,
+  "1080x1350": { headerH: 180, gridY: 206, gridH: 968, footerY: 1196, footerH: 108,
                  tituloFs: 68, bajadaFs: 28, logoPx: 80, radio: 16 },
-  "1080x1920": { headerH: 240, gridY: 390, gridH: 1230, footerY: 1650, footerH: 170,
+  "1080x1920": { headerH: 240, gridY: 396, gridH: 1204, footerY: 1636, footerH: 132,
                  tituloFs: 82, bajadaFs: 34, logoPx: 92, radio: 18, safeTop: 120 },
 };
 
@@ -1861,6 +1862,167 @@ function cargarImagen(url) {
   });
 }
 
+// ── Piezas visuales del diseño ──────────────────────────────────
+
+// Encabezado con degradado y borde inferior curvo
+function dibujarEncabezado(x, ancho, y, h, color, titulo, bajada) {
+  const grad = x.createLinearGradient(0, y, ancho, y + h);
+  grad.addColorStop(0, TEMA.primary);
+  grad.addColorStop(0.55, color);
+  grad.addColorStop(1, TEMA.secondary);
+
+  // La curva de abajo se logra con una elipse recortada
+  const curva = h * 0.22;
+  x.save();
+  x.beginPath();
+  x.moveTo(0, y);
+  x.lineTo(ancho, y);
+  x.lineTo(ancho, y + h - curva);
+  x.quadraticCurveTo(ancho / 2, y + h + curva, 0, y + h - curva);
+  x.closePath();
+  x.fillStyle = grad;
+  x.fill();
+
+  // Puntos decorativos en la esquina derecha
+  x.fillStyle = "rgba(255,255,255,.22)";
+  for (let f = 0; f < 4; f++) {
+    for (let c = 0; c < 4; c++) {
+      x.beginPath();
+      x.arc(ancho - 90 + c * 16, y + h * 0.28 + f * 16, 3, 0, Math.PI * 2);
+      x.fill();
+    }
+  }
+  x.restore();
+
+  const tOn = textoSobre(color);
+  x.textAlign = "center";
+  x.fillStyle = tOn;
+  const fsT = Math.round(h * 0.40);
+  x.font = `900 ${fsT}px ${TEMA.font}`;
+  const ty = y + h * (bajada ? 0.44 : 0.55) + fsT * 0.34;
+  x.fillText(titulo.toUpperCase(), ancho / 2, ty);
+
+  if (bajada) {
+    const fsB = Math.round(h * 0.155);
+    x.font = `500 ${fsB}px ${TEMA.font}`;
+    x.fillStyle = tOn === "#ffffff" ? "rgba(255,255,255,.92)" : "rgba(30,27,48,.72)";
+    x.fillText(bajada, ancho / 2, ty + fsB + 14);
+  }
+}
+
+// Ícono de carrito en círculo verde, abajo a la derecha de la tarjeta
+function dibujarCarrito(x, cx, cy, d, color) {
+  x.save();
+  x.shadowColor = "rgba(21,128,61,.28)";
+  x.shadowBlur = 10;
+  x.shadowOffsetY = 3;
+  x.fillStyle = color;
+  x.beginPath();
+  x.arc(cx, cy, d / 2, 0, Math.PI * 2);
+  x.fill();
+  x.restore();
+
+  const s = d * 0.42;
+  x.save();
+  x.translate(cx - s / 2, cy - s / 2);
+  x.scale(s / 24, s / 24);
+  x.strokeStyle = "#ffffff";
+  x.lineWidth = 2.2;
+  x.lineCap = "round";
+  x.lineJoin = "round";
+  x.beginPath();
+  x.moveTo(1, 2); x.lineTo(4, 2); x.lineTo(6.7, 15.4);
+  x.moveTo(6.7, 15.4); x.lineTo(19, 15.4); x.lineTo(22, 6); x.lineTo(5, 6);
+  x.stroke();
+  x.beginPath(); x.arc(9, 20.5, 1.5, 0, Math.PI * 2); x.stroke();
+  x.beginPath(); x.arc(19, 20.5, 1.5, 0, Math.PI * 2); x.stroke();
+  x.restore();
+}
+
+// Franja de beneficios sobre el pie
+function dibujarBeneficios(x, ancho, y, h, color) {
+  const M = TEMA.outerMargin;
+  x.save();
+  x.shadowColor = "rgba(30,27,48,.08)";
+  x.shadowBlur = 14;
+  x.shadowOffsetY = 4;
+  x.fillStyle = "#ffffff";
+  x.beginPath();
+  x.roundRect(M, y, ancho - M * 2, h, h * 0.34);
+  x.fill();
+  x.restore();
+
+  const esc = h / 96;
+  const cy = y + h / 2;
+
+  // Logo
+  const lp = h * 0.56;
+  x.fillStyle = color;
+  x.beginPath();
+  x.roundRect(M + 20, cy - lp / 2, lp, lp, lp * 0.26);
+  x.fill();
+  x.fillStyle = "#ffffff";
+  x.textAlign = "center";
+  x.font = `900 ${Math.round(lp * 0.42)}px ${TEMA.font}`;
+  x.fillText("JR", M + 20 + lp / 2, cy + lp * 0.15);
+
+  x.textAlign = "left";
+  x.fillStyle = TEMA.text;
+  x.font = `800 ${Math.round(26 * esc)}px ${TEMA.font}`;
+  x.fillText("JR Shop", M + 20 + lp + 16, cy - 4);
+  x.fillStyle = TEMA.muted;
+  x.font = `500 ${Math.round(19 * esc)}px ${TEMA.font}`;
+  x.fillText("www.jrshop.com.ar", M + 20 + lp + 16, cy + 22 * esc);
+
+  // Envíos
+  const x2 = ancho * 0.52;
+  x.strokeStyle = color; x.lineWidth = 2.2 * esc;
+  x.lineCap = "round"; x.lineJoin = "round";
+  x.save();
+  x.translate(x2, cy - 13 * esc);
+  x.scale(esc * 1.1, esc * 1.1);
+  x.beginPath();
+  x.rect(0, 2, 15, 13);
+  x.moveTo(15, 7); x.lineTo(19, 7); x.lineTo(22, 10); x.lineTo(22, 15); x.lineTo(15, 15);
+  x.stroke();
+  x.beginPath(); x.arc(5, 18, 2.4, 0, Math.PI * 2); x.stroke();
+  x.beginPath(); x.arc(18, 18, 2.4, 0, Math.PI * 2); x.stroke();
+  x.restore();
+
+  x.fillStyle = TEMA.text;
+  x.font = `700 ${Math.round(20 * esc)}px ${TEMA.font}`;
+  x.fillText("Envíos a", x2 + 34 * esc, cy - 4);
+  x.fillStyle = TEMA.text2;
+  x.font = `500 ${Math.round(18 * esc)}px ${TEMA.font}`;
+  x.fillText("todo el país", x2 + 34 * esc, cy + 20 * esc);
+
+  // WhatsApp
+  const x3 = ancho * 0.735;
+  const rw = 21 * esc;
+  x.fillStyle = "#25D366";
+  x.beginPath(); x.arc(x3, cy, rw, 0, Math.PI * 2); x.fill();
+  x.save();
+  x.translate(x3 - rw * 0.55, cy - rw * 0.55);
+  x.scale(rw * 1.1 / 24, rw * 1.1 / 24);
+  x.fillStyle = "#ffffff";
+  x.beginPath();
+  x.arc(12, 12, 10, 0, Math.PI * 2);
+  x.fill();
+  x.fillStyle = "#25D366";
+  x.beginPath();
+  x.arc(12, 12, 7.6, 0, Math.PI * 2);
+  x.fill();
+  x.restore();
+
+  x.fillStyle = TEMA.text;
+  x.textAlign = "left";
+  x.font = `800 ${Math.round(21 * esc)}px ${TEMA.font}`;
+  x.fillText("381 223-5528", x3 + rw + 14 * esc, cy - 4);
+  x.fillStyle = TEMA.text2;
+  x.font = `500 ${Math.round(17 * esc)}px ${TEMA.font}`;
+  x.fillText("Comprá por WhatsApp", x3 + rw + 14 * esc, cy + 19 * esc);
+}
+
 async function generarPlaca() {
   const ids = [...elegidos];
   if (!ids.length) { avisar("avisoPlaca", "Elegí al menos un producto", false); return; }
@@ -1891,6 +2053,7 @@ async function generarPlaca() {
       desc:    $("plDescuento").checked,
       codigo:  $("plCodigo").checked,
       cuotas:  $("plCuotas").checked,
+      carrito: $("plCarrito").checked,
       logo:    $("plLogo").checked,
     };
     const titulo = $("plTitulo").value.trim();
@@ -1910,29 +2073,7 @@ async function generarPlaca() {
     // ── Encabezado ──
     let gridY = L.gridY, gridH = L.gridH;
     if (titulo) {
-      const hy = L.safeTop || 0;
-      x.fillStyle = color;
-      x.fillRect(0, hy, ancho, L.headerH);
-
-      x.textAlign = "center";
-      x.fillStyle = textoSobre(color);
-      x.font = `900 ${L.tituloFs}px ${TEMA.font}`;
-      const ty = hy + (bajada ? L.headerH * 0.44 : L.headerH * 0.58) + L.tituloFs * 0.34;
-      x.fillText(titulo.toUpperCase(), ancho / 2, ty);
-
-      // Línea de acento corta debajo del título
-      const lw = 72, lh = 6;
-      x.fillStyle = TEMA.secondary;
-      x.beginPath();
-      x.roundRect(ancho / 2 - lw / 2, ty + L.tituloFs * 0.28, lw, lh, 3);
-      x.fill();
-
-      if (bajada) {
-        x.font = `500 ${L.bajadaFs}px ${TEMA.font}`;
-        x.fillStyle = textoSobre(color) === "#ffffff"
-          ? "rgba(255,255,255,.85)" : "rgba(30,27,48,.7)";
-        x.fillText(bajada, ancho / 2, ty + L.tituloFs * 0.28 + lh + L.bajadaFs + 12);
-      }
+      dibujarEncabezado(x, ancho, L.safeTop || 0, L.headerH, color, titulo, bajada);
     } else {
       // Sin título, la grilla gana ese espacio
       gridY = (L.safeTop || 0) + M;
@@ -2018,17 +2159,22 @@ async function generarPlaca() {
       const fsCodigo  = clamp(15, cw * 0.043, 22);
 
       let ty = cy + padding + fotoH + 14;
-      x.textAlign = "center";
-      const centro = cx + cw / 2;
+      // Los textos van alineados a la izquierda, como en el diseño.
+      // El carrito ocupa la esquina inferior derecha, asi que se reserva
+      // ese ancho para que el precio no se le encime.
       const compacto = n >= 9;
+      const dCarrito = (!ver.carrito || compacto) ? 0 : clamp(34, cw * 0.11, 56);
+      const txtX = cx + padding;
+      const txtW = cw - padding * 2 - (dCarrito ? dCarrito + 10 : 0);
+      x.textAlign = "left";
 
       if (ver.nombre) {
-        const lineas = dosLineas(x, p.nombre, cw - padding * 2, fsNombre);
+        const lineas = dosLineas(x, p.nombre, txtW, fsNombre);
         x.fillStyle = TEMA.text;
         x.font = `700 ${fsNombre}px ${TEMA.font}`;
         for (const ln of lineas) {
           ty += fsNombre;
-          x.fillText(ln, centro, ty);
+          x.fillText(ln, txtX, ty);
           ty += fsNombre * 0.13;
         }
         ty += 8;
@@ -2043,7 +2189,7 @@ async function generarPlaca() {
         x.font = `800 ${fsPrecio}px ${TEMA.font}`;
         const wP = x.measureText(txtP).width;
         const total = wT + 10 + wP;
-        let px = centro - total / 2;
+        let px = txtX;   // alineado a la izquierda, como el resto
 
         x.textAlign = "left";
         x.font = `500 ${fsTachado}px ${TEMA.font}`;
@@ -2058,7 +2204,6 @@ async function generarPlaca() {
         x.font = `800 ${fsPrecio}px ${TEMA.font}`;
         x.fillStyle = color;
         x.fillText(txtP, px + wT + 10, ty);
-        x.textAlign = "center";
         ty += 7;
       } else {
         if (ver.tachado) {
@@ -2066,12 +2211,12 @@ async function generarPlaca() {
           x.font = `500 ${fsTachado}px ${TEMA.font}`;
           x.fillStyle = TEMA.muted;
           const t = plata(p.precio);
-          x.fillText(t, centro, ty);
+          x.fillText(t, txtX, ty);
           const w = x.measureText(t).width;
           x.strokeStyle = TEMA.muted; x.lineWidth = 2;
           x.beginPath();
-          x.moveTo(centro - w / 2, ty - fsTachado * 0.32);
-          x.lineTo(centro + w / 2, ty - fsTachado * 0.32);
+          x.moveTo(txtX, ty - fsTachado * 0.32);
+          x.lineTo(txtX + w, ty - fsTachado * 0.32);
           x.stroke();
           ty += 3;
         }
@@ -2081,7 +2226,7 @@ async function generarPlaca() {
           ty += fs;
           x.font = `800 ${fs}px ${TEMA.font}`;
           x.fillStyle = color;
-          x.fillText(plata(p.precio_desc), centro, ty);
+          x.fillText(plata(p.precio_desc), txtX, ty);
           ty += 7;
         }
       }
@@ -2090,7 +2235,7 @@ async function generarPlaca() {
         ty += fsCuotas;
         x.font = `600 ${fsCuotas}px ${TEMA.font}`;
         x.fillStyle = TEMA.text2;
-        x.fillText(`6 cuotas de ${plata(Math.round(p.precio / 6))}`, centro, ty);
+        x.fillText(`6 cuotas de ${plata(Math.round(p.precio / 6))}`, txtX, ty);
         ty += 6;
       }
 
@@ -2098,40 +2243,19 @@ async function generarPlaca() {
         ty += fsCodigo;
         x.font = `500 ${fsCodigo}px ${TEMA.font}`;
         x.fillStyle = TEMA.muted;
-        x.fillText(p.id, centro, ty);
+        x.fillText(p.id, txtX, ty);
+      }
+
+      // Carrito en la esquina inferior derecha, alineado con el precio
+      if (dCarrito) {
+        dibujarCarrito(x, cx + cw - padding - dCarrito / 2,
+                       cy + cardH - padding - dCarrito / 2, dCarrito, color);
       }
     }
 
-    // ── Pie ──
+    // ── Pie con beneficios ──
     if (ver.logo) {
-      const py = L.footerY, fh = L.footerH;
-      x.fillStyle = color;
-      x.fillRect(0, py, ancho, fh);
-
-      const lp = L.logoPx;
-      x.fillStyle = "#ffffff";
-      x.beginPath();
-      x.roundRect(M, py + (fh - lp) / 2, lp, lp, L.radio);
-      x.fill();
-      x.fillStyle = color;
-      x.textAlign = "center";
-      x.font = `900 ${Math.round(lp * 0.44)}px ${TEMA.font}`;
-      x.fillText("JR", M + lp / 2, py + fh / 2 + lp * 0.16);
-
-      const tOn = textoSobre(color);
-      const esc2 = fh / 120;
-      x.textAlign = "left";
-      x.fillStyle = tOn;
-      x.font = `800 ${Math.round(31 * esc2)}px ${TEMA.font}`;
-      x.fillText("JR Shop", M + lp + 20, py + fh * 0.44);
-      x.font = `500 ${Math.round(24 * esc2)}px ${TEMA.font}`;
-      x.fillStyle = tOn === "#ffffff" ? "rgba(255,255,255,.88)" : "rgba(30,27,48,.7)";
-      x.fillText("www.jrshop.com.ar", M + lp + 20, py + fh * 0.74);
-
-      x.textAlign = "right";
-      x.fillStyle = tOn;
-      x.font = `700 ${Math.round(29 * esc2)}px ${TEMA.font}`;
-      x.fillText("381 223-5528", ancho - M, py + fh * 0.6);
+      dibujarBeneficios(x, ancho, L.footerY, L.footerH, color);
     }
 
     $("previaPlaca").classList.remove("oculto");
