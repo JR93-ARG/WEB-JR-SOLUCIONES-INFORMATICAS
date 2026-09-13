@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-09-13 14:32
-window.JR_VERSION = "2026-09-13 14:32";
+// JR Shop — generado 2026-09-13 15:28
+window.JR_VERSION = "2026-09-13 15:28";
 
 
 const CART_PHONE = "543812235528";
@@ -499,8 +499,11 @@ document.querySelectorAll(".toggle-btn").forEach(btn => {
 
 function validarDatos() {
   let ok = true;
-  ["inpNombre","inpDNI","inpTelefono"].forEach(id => {
+    // Solo se validan los campos que existen: el DNI y el email se
+    // muestran segun lo configurado en el panel.
+    ["inpNombre","inpDNI","inpTelefono","inpEmail"].forEach(id => {
     const el = document.getElementById(id);
+      if (!el) return;
     const err = document.getElementById(id+"Err");
     if (!el.value.trim()) { el.classList.add("error"); if(err) err.classList.add("visible"); ok=false; }
     else { el.classList.remove("error"); if(err) err.classList.remove("visible"); }
@@ -852,7 +855,10 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   try {
     const tipo   = tipoEnvioEl();
     const nombre = document.getElementById("inpNombre").value.trim();
-    const dni    = document.getElementById("inpDNI").value.replace(/[.-s]/g,"").trim();
+    const dniEl  = document.getElementById("inpDNI");
+    const dni    = dniEl ? dniEl.value.replace(/[.-s]/g,"").trim() : "";
+    const mailEl = document.getElementById("inpEmail");
+    const email  = mailEl ? mailEl.value.trim() : "";
     const tel    = document.getElementById("inpTelefono").value.trim();
     const notas      = document.getElementById("inpNotas").value.trim();
     const dir    = tipo==="envio" ? document.getElementById("inpDireccion").value.trim() : "";
@@ -910,7 +916,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
     window.open("https://wa.me/"+CART_PHONE+"?text="+encodeURIComponent(msg),"_blank");
 
     const filas = cart.map(i=>({
-      fecha, cliente:nombre, dni, telefono:tel, producto:i.name,
+      fecha, cliente:nombre, dni, email, telefono:tel, producto:i.name,
       proveedor:(i.pv||"-")+" "+(i.id||""), cantidad:i.qty,
       precio_unit:i.price, subtotal:i.price*i.qty,
       total:totalFinal, direccion, notas,
