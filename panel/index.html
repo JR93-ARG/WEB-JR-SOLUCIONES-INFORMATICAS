@@ -2248,6 +2248,14 @@ async function generarPlaca() {
       x.roundRect(cx, cy, cw, cardH, radio);
       x.stroke();
 
+      // Todo lo que sigue se recorta al area de la tarjeta. Si algun
+      // calculo falla, el texto se corta en el borde en vez de pisar
+      // la tarjeta de abajo.
+      x.save();
+      x.beginPath();
+      x.roundRect(cx, cy, cw, cardH, radio);
+      x.clip();
+
       // ── Alto que necesitan los textos ──
       const fsN_ = clamp(21, cw * 0.067, 38);
       const fsP_ = clamp(28, cw * 0.105, 64);
@@ -2403,7 +2411,10 @@ async function generarPlaca() {
         x.fillText(p.id, txtX, ty);
       }
 
-      // Carrito en la esquina inferior derecha, alineado con el precio
+      x.restore();   // fin del recorte de la tarjeta
+
+      // El carrito se dibuja fuera del recorte para que su sombra
+      // no quede cortada en el borde
       if (dCarrito) {
         dibujarCarrito(x, cx + cw - padding - dCarrito / 2,
                        cy + cardH - padding - dCarrito / 2, dCarrito, color);
