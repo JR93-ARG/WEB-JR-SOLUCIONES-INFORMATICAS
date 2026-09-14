@@ -1817,6 +1817,9 @@ const clamp = (min, v, max) => Math.max(min, Math.min(v, max));
 // Alto de la foto segun cuantos productos entran: con 9 no puede ocupar
 // el 60% porque el precio quedaria invisible.
 function altoFoto(cardH, n) {
+  // Con un solo producto la tarjeta es muy alta: si la foto no crece,
+  // queda un hueco grande entre el precio y el borde de abajo.
+  if (n === 1) return cardH * 0.64;
   if (n <= 2) return cardH * 0.56;
   if (n <= 4) return cardH * 0.52;
   if (n <= 6) return cardH * 0.48;
@@ -1857,7 +1860,12 @@ let logoJR = null, logoIntentado = false;
 async function obtenerLogo() {
   if (logoIntentado) return logoJR;
   logoIntentado = true;
-  logoJR = await cargarImagen(SITIO + "/logo.png");
+  // Se prueban las rutas donde suele estar publicado el logo
+  for (const ruta of ["/logo.png", "/img/logo.png", "/assets/logo.png"]) {
+    logoJR = await cargarImagen(SITIO + ruta);
+    if (logoJR) { console.log("[placa] logo cargado de", ruta); break; }
+  }
+  if (!logoJR) console.warn("[placa] no se encontró logo.png — se usan las letras JR");
   return logoJR;
 }
 
@@ -2040,16 +2048,36 @@ function dibujarBeneficios(x, ancho, y, h, color) {
   const rw = 21 * esc;
   x.fillStyle = "#25D366";
   x.beginPath(); x.arc(x3, cy, rw, 0, Math.PI * 2); x.fill();
+  // Teléfono del ícono de WhatsApp, trazado a mano
   x.save();
-  x.translate(x3 - rw * 0.55, cy - rw * 0.55);
-  x.scale(rw * 1.1 / 24, rw * 1.1 / 24);
+  x.translate(x3 - rw * 0.5, cy - rw * 0.5);
+  x.scale(rw / 12, rw / 12);
   x.fillStyle = "#ffffff";
   x.beginPath();
-  x.arc(12, 12, 10, 0, Math.PI * 2);
-  x.fill();
-  x.fillStyle = "#25D366";
-  x.beginPath();
-  x.arc(12, 12, 7.6, 0, Math.PI * 2);
+  x.moveTo(8.9, 7.6);
+  x.bezierCurveTo(8.7, 7.5, 7.6, 7.0, 7.4, 6.9);
+  x.bezierCurveTo(7.2, 6.9, 7.1, 6.9, 6.9, 7.1);
+  x.bezierCurveTo(6.8, 7.3, 6.4, 7.8, 6.3, 7.9);
+  x.bezierCurveTo(6.2, 8.1, 6.1, 8.1, 5.9, 8.0);
+  x.bezierCurveTo(5.4, 7.8, 4.8, 7.4, 4.3, 6.9);
+  x.bezierCurveTo(3.9, 6.5, 3.6, 6.0, 3.4, 5.5);
+  x.bezierCurveTo(3.3, 5.3, 3.4, 5.2, 3.5, 5.1);
+  x.bezierCurveTo(3.6, 5.0, 3.7, 4.9, 3.8, 4.7);
+  x.bezierCurveTo(3.9, 4.6, 3.9, 4.5, 4.0, 4.4);
+  x.bezierCurveTo(4.0, 4.2, 4.0, 4.1, 3.9, 4.0);
+  x.bezierCurveTo(3.9, 3.9, 3.5, 2.8, 3.3, 2.4);
+  x.bezierCurveTo(3.2, 2.0, 3.0, 2.1, 2.9, 2.1);
+  x.lineTo(2.4, 2.1);
+  x.bezierCurveTo(2.2, 2.1, 2.0, 2.2, 1.8, 2.4);
+  x.bezierCurveTo(1.4, 2.8, 1.1, 3.4, 1.1, 4.2);
+  x.bezierCurveTo(1.1, 5.1, 1.6, 6.0, 1.7, 6.1);
+  x.bezierCurveTo(1.8, 6.3, 3.4, 8.8, 5.9, 9.9);
+  x.bezierCurveTo(6.5, 10.2, 7.0, 10.3, 7.3, 10.4);
+  x.bezierCurveTo(7.9, 10.6, 8.4, 10.6, 8.8, 10.5);
+  x.bezierCurveTo(9.3, 10.4, 10.2, 10.0, 10.4, 9.4);
+  x.bezierCurveTo(10.6, 8.9, 10.6, 8.5, 10.5, 8.4);
+  x.bezierCurveTo(10.5, 8.3, 10.3, 8.2, 10.1, 8.1);
+  x.closePath();
   x.fill();
   x.restore();
 
@@ -2198,7 +2226,19 @@ async function generarPlaca() {
       const fsCuotas  = clamp(18, cw * 0.054, 28);
       const fsCodigo  = clamp(15, cw * 0.043, 22);
 
-      let ty = cy + padding + fotoH + 14;
+      // El bloque de texto se ancla ABAJO, no debajo de la foto: asi no
+      // queda un hueco entre el precio y el borde de la tarjeta cuando
+      // hay pocos elementos activos.
+      let altoTxt = 0;
+      const fsN_ = clamp(21, cw * 0.067, 38);
+      const fsP_ = clamp(28, cw * 0.105, 64);
+      if (ver.nombre)  altoTxt += fsN_ * 2.26 + 8;
+      if (ver.tachado) altoTxt += Math.max(16, fsP_ * 0.46) + 3;
+      if (ver.precio)  altoTxt += fsP_ + 7;
+      if (ver.cuotas && p.precio >= 50000) altoTxt += clamp(18, cw * 0.054, 28) + 6;
+      if (ver.codigo)  altoTxt += clamp(15, cw * 0.043, 22);
+      let ty = Math.max(cy + padding + fotoH + 14,
+                        cy + cardH - padding - altoTxt);
       // Los textos van alineados a la izquierda, como en el diseño.
       // El carrito ocupa la esquina inferior derecha, asi que se reserva
       // ese ancho para que el precio no se le encime.
