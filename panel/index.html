@@ -406,7 +406,15 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
         <div class="tarjeta">
           <div class="tarjeta-tit">Vista previa</div>
           <canvas id="lienzoPlaca" style="width:100%;border-radius:10px;border:1px solid var(--linea)"></canvas>
-          <button class="btn btn-full" id="btnBajarPlaca" style="margin-top:12px">Descargar</button>
+          <button class="btn btn-full" id="btnCompartirPlaca" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/>
+            </svg>
+            Compartir
+          </button>
+          <button class="btn btn-sec btn-full" id="btnBajarPlaca" style="margin-top:8px">Descargar</button>
+          <div class="fila-det" style="margin-top:9px;text-align:center" id="ayudaCompartir"></div>
         </div>
       </div>
     </section>
@@ -1826,6 +1834,15 @@ function altoFoto(cardH, n) {
   return cardH * 0.44;
 }
 
+// Recorta el nombre a una sola linea con puntos suspensivos
+function unaLinea(x, texto, maxW, fs) {
+  x.font = `700 ${fs}px ${TEMA.font}`;
+  if (x.measureText(texto).width <= maxW) return texto;
+  let t = texto;
+  while (x.measureText(t + "…").width > maxW && t.length > 4) t = t.slice(0, -1);
+  return t + "…";
+}
+
 // Parte el nombre en dos lineas como maximo, cortando por palabras
 function dosLineas(x, texto, maxW, fs) {
   x.font = `700 ${fs}px ${TEMA.font}`;
@@ -1996,98 +2013,147 @@ function dibujarCarrito(x, cx, cy, d, color) {
 // Franja de beneficios sobre el pie
 function dibujarBeneficios(x, ancho, y, h, color) {
   const M = TEMA.outerMargin;
+  const W = ancho - M * 2;
+
   x.save();
   x.shadowColor = "rgba(30,27,48,.08)";
   x.shadowBlur = 14;
   x.shadowOffsetY = 4;
   x.fillStyle = "#ffffff";
   x.beginPath();
-  x.roundRect(M, y, ancho - M * 2, h, h * 0.34);
+  x.roundRect(M, y, W, h, h * 0.34);
   x.fill();
   x.restore();
 
-  const esc = h / 96;
   const cy = y + h / 2;
+  const esc = h / 96;
+  const fsTit = Math.round(21 * esc);
+  const fsSub = Math.round(17 * esc);
+  const lp    = h * 0.56;
+  const rw    = h * 0.21;
 
-  // Logo
-  const lp = h * 0.56;
-  dibujarLogo(x, M + 20, cy - lp / 2, lp, color, lp * 0.26);
+  // Se miden los tres bloques y se reparte el ancho disponible.
+  // Con posiciones fijas, "Comprá por WhatsApp" se salía de la tarjeta.
+  x.font = `800 ${fsTit}px ${TEMA.font}`;
+  const w1t = x.measureText("JR Shop").width;
+  const w2t = x.measureText("Envíos a").width;
+  const w3t = x.measureText("381 223-5528").width;
+  x.font = `500 ${fsSub}px ${TEMA.font}`;
+  const w1s = x.measureText("www.jrshop.com.ar").width;
+  const w2s = x.measureText("todo el país").width;
+  const w3s = x.measureText("Comprá por WhatsApp").width;
 
+  const sep = 12 * esc;
+  const b1 = lp + sep + Math.max(w1t, w1s);
+  const b2 = rw * 1.6 + sep + Math.max(w2t, w2s);
+  const b3 = rw * 2 + sep + Math.max(w3t, w3s);
+
+  const padInt = 20 * esc;
+  const libre = W - padInt * 2 - (b1 + b2 + b3);
+  const hueco = Math.max(14 * esc, libre / 2);
+
+  let px = M + padInt;
+  const yTit = cy - 3 * esc;
+  const ySub = cy + fsSub + 3 * esc;
+
+  // ── Logo y marca ──
+  dibujarLogo(x, px, cy - lp / 2, lp, color, lp * 0.26);
+  px += lp + sep;
   x.textAlign = "left";
   x.fillStyle = TEMA.text;
-  x.font = `800 ${Math.round(26 * esc)}px ${TEMA.font}`;
-  x.fillText("JR Shop", M + 20 + lp + 16, cy - 4);
+  x.font = `800 ${fsTit}px ${TEMA.font}`;
+  x.fillText("JR Shop", px, yTit);
   x.fillStyle = TEMA.muted;
-  x.font = `500 ${Math.round(19 * esc)}px ${TEMA.font}`;
-  x.fillText("www.jrshop.com.ar", M + 20 + lp + 16, cy + 22 * esc);
+  x.font = `500 ${fsSub}px ${TEMA.font}`;
+  x.fillText("www.jrshop.com.ar", px, ySub);
+  px += Math.max(w1t, w1s) + hueco;
 
-  // Envíos
-  const x2 = ancho * 0.52;
-  x.strokeStyle = color; x.lineWidth = 2.2 * esc;
-  x.lineCap = "round"; x.lineJoin = "round";
+  // ── Envíos ──
   x.save();
-  x.translate(x2, cy - 13 * esc);
-  x.scale(esc * 1.1, esc * 1.1);
+  x.translate(px, cy - rw * 0.75);
+  const e2 = (rw * 1.5) / 24;
+  x.scale(e2, e2);
+  x.strokeStyle = color;
+  x.lineWidth = 2.4;
+  x.lineCap = "round";
+  x.lineJoin = "round";
   x.beginPath();
-  x.rect(0, 2, 15, 13);
-  x.moveTo(15, 7); x.lineTo(19, 7); x.lineTo(22, 10); x.lineTo(22, 15); x.lineTo(15, 15);
+  x.rect(1, 3, 14, 11);
+  x.moveTo(15, 7); x.lineTo(19, 7); x.lineTo(22, 10); x.lineTo(22, 14); x.lineTo(15, 14);
   x.stroke();
-  x.beginPath(); x.arc(5, 18, 2.4, 0, Math.PI * 2); x.stroke();
-  x.beginPath(); x.arc(18, 18, 2.4, 0, Math.PI * 2); x.stroke();
+  x.beginPath(); x.arc(5.5, 17, 2.3, 0, Math.PI * 2); x.stroke();
+  x.beginPath(); x.arc(18, 17, 2.3, 0, Math.PI * 2); x.stroke();
   x.restore();
+  px += rw * 1.6 + sep;
 
   x.fillStyle = TEMA.text;
-  x.font = `700 ${Math.round(20 * esc)}px ${TEMA.font}`;
-  x.fillText("Envíos a", x2 + 34 * esc, cy - 4);
+  x.font = `800 ${fsTit}px ${TEMA.font}`;
+  x.fillText("Envíos a", px, yTit);
   x.fillStyle = TEMA.text2;
-  x.font = `500 ${Math.round(18 * esc)}px ${TEMA.font}`;
-  x.fillText("todo el país", x2 + 34 * esc, cy + 20 * esc);
+  x.font = `500 ${fsSub}px ${TEMA.font}`;
+  x.fillText("todo el país", px, ySub);
+  px += Math.max(w2t, w2s) + hueco;
 
-  // WhatsApp
-  const x3 = ancho * 0.735;
-  const rw = 21 * esc;
+  // ── WhatsApp ──
   x.fillStyle = "#25D366";
-  x.beginPath(); x.arc(x3, cy, rw, 0, Math.PI * 2); x.fill();
-  // Teléfono del ícono de WhatsApp, trazado a mano
-  x.save();
-  x.translate(x3 - rw * 0.5, cy - rw * 0.5);
-  x.scale(rw / 12, rw / 12);
-  x.fillStyle = "#ffffff";
   x.beginPath();
-  x.moveTo(8.9, 7.6);
-  x.bezierCurveTo(8.7, 7.5, 7.6, 7.0, 7.4, 6.9);
-  x.bezierCurveTo(7.2, 6.9, 7.1, 6.9, 6.9, 7.1);
-  x.bezierCurveTo(6.8, 7.3, 6.4, 7.8, 6.3, 7.9);
-  x.bezierCurveTo(6.2, 8.1, 6.1, 8.1, 5.9, 8.0);
-  x.bezierCurveTo(5.4, 7.8, 4.8, 7.4, 4.3, 6.9);
-  x.bezierCurveTo(3.9, 6.5, 3.6, 6.0, 3.4, 5.5);
-  x.bezierCurveTo(3.3, 5.3, 3.4, 5.2, 3.5, 5.1);
-  x.bezierCurveTo(3.6, 5.0, 3.7, 4.9, 3.8, 4.7);
-  x.bezierCurveTo(3.9, 4.6, 3.9, 4.5, 4.0, 4.4);
-  x.bezierCurveTo(4.0, 4.2, 4.0, 4.1, 3.9, 4.0);
-  x.bezierCurveTo(3.9, 3.9, 3.5, 2.8, 3.3, 2.4);
-  x.bezierCurveTo(3.2, 2.0, 3.0, 2.1, 2.9, 2.1);
-  x.lineTo(2.4, 2.1);
-  x.bezierCurveTo(2.2, 2.1, 2.0, 2.2, 1.8, 2.4);
-  x.bezierCurveTo(1.4, 2.8, 1.1, 3.4, 1.1, 4.2);
-  x.bezierCurveTo(1.1, 5.1, 1.6, 6.0, 1.7, 6.1);
-  x.bezierCurveTo(1.8, 6.3, 3.4, 8.8, 5.9, 9.9);
-  x.bezierCurveTo(6.5, 10.2, 7.0, 10.3, 7.3, 10.4);
-  x.bezierCurveTo(7.9, 10.6, 8.4, 10.6, 8.8, 10.5);
-  x.bezierCurveTo(9.3, 10.4, 10.2, 10.0, 10.4, 9.4);
-  x.bezierCurveTo(10.6, 8.9, 10.6, 8.5, 10.5, 8.4);
-  x.bezierCurveTo(10.5, 8.3, 10.3, 8.2, 10.1, 8.1);
+  x.arc(px + rw, cy, rw, 0, Math.PI * 2);
+  x.fill();
+  dibujarIconoWA(x, px + rw, cy, rw * 1.15);
+  px += rw * 2 + sep;
+
+  x.fillStyle = TEMA.text;
+  x.font = `800 ${fsTit}px ${TEMA.font}`;
+  x.fillText("381 223-5528", px, yTit);
+  x.fillStyle = TEMA.text2;
+  x.font = `500 ${fsSub}px ${TEMA.font}`;
+  x.fillText("Comprá por WhatsApp", px, ySub);
+}
+
+// Ícono de WhatsApp: burbuja con cola y teléfono adentro
+function dibujarIconoWA(x, cx, cy, tam) {
+  x.save();
+  x.translate(cx - tam / 2, cy - tam / 2);
+  x.scale(tam / 32, tam / 32);
+  x.fillStyle = "#ffffff";
+
+  // Burbuja con la cola abajo a la izquierda
+  x.beginPath();
+  x.arc(16, 15.5, 11.5, Math.PI * 0.88, Math.PI * 2.72);
+  x.lineTo(4.2, 28);
+  x.lineTo(9.6, 24.6);
+  x.closePath();
+  x.fill();
+
+  // Auricular
+  x.fillStyle = "#25D366";
+  x.beginPath();
+  x.moveTo(20.4, 18.9);
+  x.bezierCurveTo(20.0, 18.7, 18.3, 17.9, 18.0, 17.8);
+  x.bezierCurveTo(17.6, 17.7, 17.4, 17.6, 17.2, 18.0);
+  x.bezierCurveTo(16.9, 18.3, 16.3, 19.0, 16.1, 19.3);
+  x.bezierCurveTo(15.9, 19.5, 15.7, 19.6, 15.4, 19.4);
+  x.bezierCurveTo(14.6, 19.1, 13.7, 18.5, 12.9, 17.7);
+  x.bezierCurveTo(12.3, 17.1, 11.8, 16.3, 11.5, 15.6);
+  x.bezierCurveTo(11.3, 15.3, 11.5, 15.1, 11.6, 15.0);
+  x.bezierCurveTo(11.8, 14.8, 12.0, 14.6, 12.1, 14.4);
+  x.bezierCurveTo(12.3, 14.2, 12.4, 14.1, 12.5, 13.9);
+  x.bezierCurveTo(12.6, 13.6, 12.5, 13.5, 12.5, 13.3);
+  x.bezierCurveTo(12.4, 13.1, 11.8, 11.5, 11.6, 10.8);
+  x.bezierCurveTo(11.4, 10.2, 11.1, 10.3, 10.9, 10.3);
+  x.lineTo(10.2, 10.3);
+  x.bezierCurveTo(9.9, 10.3, 9.5, 10.4, 9.2, 10.8);
+  x.bezierCurveTo(8.8, 11.2, 8.0, 12.0, 8.0, 13.5);
+  x.bezierCurveTo(8.0, 15.1, 9.2, 16.6, 9.3, 16.8);
+  x.bezierCurveTo(9.5, 17.0, 11.8, 20.5, 15.3, 22.0);
+  x.bezierCurveTo(16.1, 22.4, 16.8, 22.6, 17.3, 22.7);
+  x.bezierCurveTo(18.1, 23.0, 18.9, 22.9, 19.5, 22.8);
+  x.bezierCurveTo(20.2, 22.7, 21.5, 22.0, 21.8, 21.2);
+  x.bezierCurveTo(22.1, 20.4, 22.1, 19.7, 22.0, 19.6);
+  x.bezierCurveTo(21.9, 19.4, 21.7, 19.3, 21.4, 19.2);
   x.closePath();
   x.fill();
   x.restore();
-
-  x.fillStyle = TEMA.text;
-  x.textAlign = "left";
-  x.font = `800 ${Math.round(21 * esc)}px ${TEMA.font}`;
-  x.fillText("381 223-5528", x3 + rw + 14 * esc, cy - 4);
-  x.fillStyle = TEMA.text2;
-  x.font = `500 ${Math.round(17 * esc)}px ${TEMA.font}`;
-  x.fillText("Comprá por WhatsApp", x3 + rw + 14 * esc, cy + 19 * esc);
 }
 
 async function generarPlaca() {
@@ -2182,8 +2248,26 @@ async function generarPlaca() {
       x.roundRect(cx, cy, cw, cardH, radio);
       x.stroke();
 
-      // ── Foto ──
-      const fotoH = altoFoto(cardH, n);
+      // ── Alto que necesitan los textos ──
+      const fsN_ = clamp(21, cw * 0.067, 38);
+      const fsP_ = clamp(28, cw * 0.105, 64);
+      // Modo compacto: tachado y precio en la misma linea, nombre en una
+      // sola. Se activa por ALTO de tarjeta, no solo por cantidad: con
+      // 6 productos en formato vertical las tarjetas tambien son chicas.
+      const compactoTxt = n >= 9 || cardH < 400;
+      let altoTxt = 0;
+      if (ver.nombre)  altoTxt += (compactoTxt ? fsN_ * 1.13 : fsN_ * 2.26) + 8;
+      if (ver.precio && ver.tachado && compactoTxt) altoTxt += fsP_ + 7;
+      else {
+        if (ver.tachado) altoTxt += Math.max(16, fsP_ * 0.46) + 3;
+        if (ver.precio)  altoTxt += fsP_ + 7;
+      }
+      if (ver.cuotas && p.precio >= 50000) altoTxt += clamp(18, cw * 0.054, 28) + 6;
+      if (ver.codigo)  altoTxt += clamp(15, cw * 0.043, 22);
+
+      // ── Foto: se achica si el texto no entra ──
+      const disponibleFoto = cardH - padding * 2 - altoTxt - 14;
+      const fotoH = Math.max(cardH * 0.24, Math.min(altoFoto(cardH, n), disponibleFoto));
       const padImg = Math.max(12, cw * 0.045);
       const boxX = cx + padding, boxY = cy + padding;
       const boxW = cw - padding * 2, boxH = fotoH;
@@ -2226,30 +2310,23 @@ async function generarPlaca() {
       const fsCuotas  = clamp(18, cw * 0.054, 28);
       const fsCodigo  = clamp(15, cw * 0.043, 22);
 
-      // El bloque de texto se ancla ABAJO, no debajo de la foto: asi no
-      // queda un hueco entre el precio y el borde de la tarjeta cuando
-      // hay pocos elementos activos.
-      let altoTxt = 0;
-      const fsN_ = clamp(21, cw * 0.067, 38);
-      const fsP_ = clamp(28, cw * 0.105, 64);
-      if (ver.nombre)  altoTxt += fsN_ * 2.26 + 8;
-      if (ver.tachado) altoTxt += Math.max(16, fsP_ * 0.46) + 3;
-      if (ver.precio)  altoTxt += fsP_ + 7;
-      if (ver.cuotas && p.precio >= 50000) altoTxt += clamp(18, cw * 0.054, 28) + 6;
-      if (ver.codigo)  altoTxt += clamp(15, cw * 0.043, 22);
+      // El texto se ancla abajo. Si no entra, la foto cede espacio: es
+      // preferible una foto mas chica a que el precio quede cortado.
       let ty = Math.max(cy + padding + fotoH + 14,
                         cy + cardH - padding - altoTxt);
       // Los textos van alineados a la izquierda, como en el diseño.
       // El carrito ocupa la esquina inferior derecha, asi que se reserva
       // ese ancho para que el precio no se le encime.
-      const compacto = n >= 9;
+      const compacto = compactoTxt;
       const dCarrito = (!ver.carrito || compacto) ? 0 : clamp(34, cw * 0.11, 56);
       const txtX = cx + padding;
       const txtW = cw - padding * 2 - (dCarrito ? dCarrito + 10 : 0);
       x.textAlign = "left";
 
       if (ver.nombre) {
-        const lineas = dosLineas(x, p.nombre, txtW, fsNombre);
+        const lineas = compactoTxt
+          ? [unaLinea(x, p.nombre, txtW, fsNombre)]
+          : dosLineas(x, p.nombre, txtW, fsNombre);
         x.fillStyle = TEMA.text;
         x.font = `700 ${fsNombre}px ${TEMA.font}`;
         for (const ln of lineas) {
@@ -2338,6 +2415,20 @@ async function generarPlaca() {
       dibujarBeneficios(x, ancho, L.footerY, L.footerH, color);
     }
 
+    // Ayuda según lo que soporte el dispositivo
+    const ayuda = $("ayudaCompartir");
+    if (ayuda) {
+      const puedeCompartir = !!(navigator.canShare &&
+        navigator.canShare({ files: [new File([""], "x.jpg", { type: "image/jpeg" })] }));
+      const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      ayuda.textContent = puedeCompartir
+        ? "Compartir abre WhatsApp, Instagram y el resto de tus apps"
+        : esIOS
+          ? "Se abre la imagen: mantenela presionada para guardarla"
+          : "";
+    }
+
     $("previaPlaca").classList.remove("oculto");
     $("previaPlaca").scrollIntoView({ behavior: "smooth", block: "nearest" });
     avisar("avisoPlaca", `${n} producto${n === 1 ? "" : "s"} · ${ancho}×${alto}`);
@@ -2349,14 +2440,77 @@ async function generarPlaca() {
 }
 
 
-function bajarPlaca() {
+function nombrePlaca() {
   const c = $("lienzoPlaca");
-  const a = document.createElement("a");
   const t = ($("plTitulo").value.trim() || "placa").toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
-  a.download = `jrshop-${t}-${c.width}x${c.height}.jpg`;
-  a.href = c.toDataURL("image/jpeg", 0.92);
+  return `jrshop-${t}-${c.width}x${c.height}.jpg`;
+}
+
+function lienzoABlob() {
+  return new Promise(res => $("lienzoPlaca").toBlob(res, "image/jpeg", 0.92));
+}
+
+/**
+ * Compartir con el menú nativo del teléfono.
+ * En iOS el atributo download no funciona en Safari, asi que esta es la
+ * unica via para que la imagen llegue a WhatsApp, Instagram o la galeria.
+ */
+async function compartirPlaca() {
+  const btn = $("btnCompartirPlaca");
+  btn.disabled = true; btn.textContent = "Preparando…";
+  try {
+    const blob = await lienzoABlob();
+    if (!blob) throw new Error("No se pudo preparar la imagen");
+    const archivo = new File([blob], nombrePlaca(), { type: "image/jpeg" });
+
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      await navigator.share({ files: [archivo], title: "JR Shop" });
+    } else {
+      // Sin soporte: se abre en una pestaña para guardarla a mano
+      abrirPlacaEnPestana();
+    }
+  } catch (e) {
+    // Cancelar el menú de compartir no es un error
+    if (e.name !== "AbortError") avisar("avisoPlaca", e.message, false);
+  } finally {
+    btn.disabled = false; btn.textContent = "Compartir";
+  }
+}
+
+// Abre la imagen sola: en iOS se mantiene presionado para guardarla
+function abrirPlacaEnPestana() {
+  const url = $("lienzoPlaca").toDataURL("image/jpeg", 0.92);
+  const w = window.open("");
+  if (!w) { avisar("avisoPlaca", "Permití las ventanas emergentes para ver la imagen", false); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>${esc(nombrePlaca())}</title>
+    <style>body{margin:0;background:#1e1b30;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;min-height:100vh;padding:16px;
+      font-family:-apple-system,sans-serif}
+      img{max-width:100%;max-height:82vh;border-radius:8px}
+      p{color:#fff;font-size:14px;text-align:center;margin-top:16px;opacity:.85}</style>
+    </head><body>
+    <img src="${url}" alt="Placa">
+    <p>Mantené presionada la imagen para guardarla o compartirla</p>
+    </body></html>`);
+  w.document.close();
+}
+
+async function bajarPlaca() {
+  const c = $("lienzoPlaca");
+  // En iOS el atributo download se ignora: conviene abrir la imagen
+  const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (esIOS) { abrirPlacaEnPestana(); return; }
+
+  const blob = await lienzoABlob();
+  const a = document.createElement("a");
+  a.download = nombrePlaca();
+  a.href = URL.createObjectURL(blob);
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 
@@ -2449,6 +2603,7 @@ $("btnRegenerar").onclick = regenerarCatalogo;
 $("btnGuardarMarkups").onclick = guardarMarkups;
 $("btnGenerarPlaca").onclick = generarPlaca;
 $("btnBajarPlaca").onclick = bajarPlaca;
+$("btnCompartirPlaca").onclick = compartirPlaca;
 
 $("filtrosPlaca").addEventListener("click", e => {
   const c = e.target.closest(".chip");
