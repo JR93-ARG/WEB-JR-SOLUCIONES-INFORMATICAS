@@ -1804,8 +1804,12 @@ const LAYOUTS = {
                  tituloFs: 64, bajadaFs: 26, logoPx: 72, radio: 14 },
   "1080x1350": { headerH: 180, gridY: 206, gridH: 968, footerY: 1196, footerH: 108,
                  tituloFs: 68, bajadaFs: 28, logoPx: 80, radio: 16 },
-  "1080x1920": { headerH: 240, gridY: 396, gridH: 1204, footerY: 1636, footerH: 132,
-                 tituloFs: 82, bajadaFs: 34, logoPx: 92, radio: 18, safeTop: 120 },
+  // En historias el encabezado arranca en 0 y es mas alto: absorbe la
+  // zona segura de arriba en vez de dejar una franja blanca.
+  // El pie termina a 130px del borde, arriba de la barra de Instagram.
+  "1080x1920": { headerH: 330, gridY: 370, gridH: 1270, footerY: 1658, footerH: 132,
+                 tituloFs: 82, bajadaFs: 34, logoPx: 92, radio: 18, safeTop: 0,
+                 headerPadTop: 110 },
 };
 
 // Columnas y filas segun formato y cantidad. En cuadrado 6 va en 3x2
@@ -1928,7 +1932,9 @@ function cargarImagen(url) {
 // ── Piezas visuales del diseño ──────────────────────────────────
 
 // Encabezado con degradado y borde inferior curvo
-function dibujarEncabezado(x, ancho, y, h, color, titulo, bajada) {
+function dibujarEncabezado(x, ancho, y, h, color, titulo, bajada, padTop = 0) {
+  // padTop deja libre la parte de arriba en historias: ahi va el reloj
+  // y la barra de estado del telefono.
   const grad = x.createLinearGradient(0, y, ancho, y + h);
   grad.addColorStop(0, TEMA.primary);
   grad.addColorStop(0.55, color);
@@ -1948,9 +1954,11 @@ function dibujarEncabezado(x, ancho, y, h, color, titulo, bajada) {
 
   // Logo chico a la izquierda del encabezado
   if (logoJR) {
-    const lt = h * 0.42;
+    const lt = (h - padTop) * 0.42;
     x.globalAlpha = 0.95;
-    dibujarLogo(x, TEMA.outerMargin, y + (h - lt) / 2 - h * 0.06, lt, "#ffffff", lt * 0.24);
+    dibujarLogo(x, TEMA.outerMargin,
+                y + padTop + (h - padTop - lt) / 2 - (h - padTop) * 0.06,
+                lt, "#ffffff", lt * 0.24);
     x.globalAlpha = 1;
   }
 
@@ -1959,7 +1967,7 @@ function dibujarEncabezado(x, ancho, y, h, color, titulo, bajada) {
   for (let f = 0; f < 4; f++) {
     for (let c = 0; c < 4; c++) {
       x.beginPath();
-      x.arc(ancho - 90 + c * 16, y + h * 0.28 + f * 16, 3, 0, Math.PI * 2);
+      x.arc(ancho - 90 + c * 16, y + padTop + (h - padTop) * 0.24 + f * 16, 3, 0, Math.PI * 2);
       x.fill();
     }
   }
@@ -1968,9 +1976,10 @@ function dibujarEncabezado(x, ancho, y, h, color, titulo, bajada) {
   const tOn = textoSobre(color);
   x.textAlign = "center";
   x.fillStyle = tOn;
-  const fsT = Math.round(h * 0.40);
+  const hUtil = h - padTop;
+  const fsT = Math.round(hUtil * 0.40);
   x.font = `900 ${fsT}px ${TEMA.font}`;
-  const ty = y + h * (bajada ? 0.44 : 0.55) + fsT * 0.34;
+  const ty = y + padTop + hUtil * (bajada ? 0.44 : 0.55) + fsT * 0.34;
   x.fillText(titulo.toUpperCase(), ancho / 2, ty);
 
   if (bajada) {
@@ -2207,7 +2216,7 @@ async function generarPlaca() {
     // ── Encabezado ──
     let gridY = L.gridY, gridH = L.gridH;
     if (titulo) {
-      dibujarEncabezado(x, ancho, L.safeTop || 0, L.headerH, color, titulo, bajada);
+      dibujarEncabezado(x, ancho, L.safeTop || 0, L.headerH, color, titulo, bajada, L.headerPadTop || 0);
     } else {
       // Sin título, la grilla gana ese espacio
       gridY = (L.safeTop || 0) + M;
@@ -2276,19 +2285,28 @@ async function generarPlaca() {
       // ── Foto: se achica si el texto no entra ──
       const disponibleFoto = cardH - padding * 2 - altoTxt - 14;
       const fotoH = Math.max(cardH * 0.24, Math.min(altoFoto(cardH, n), disponibleFoto));
+      // La caja de la foto se estira hasta donde arranca el texto: si el
+      // texto se ancla abajo, la foto aprovecha el hueco en vez de quedar
+      // chica y pegada al borde de arriba.
+      const yTexto = Math.max(cy + padding + fotoH + 14,
+                              cy + cardH - padding - altoTxt);
       const padImg = Math.max(12, cw * 0.045);
       const boxX = cx + padding, boxY = cy + padding;
-      const boxW = cw - padding * 2, boxH = fotoH;
+      const boxW = cw - padding * 2;
+      const boxH = Math.max(fotoH, yTexto - 14 - (cy + padding));
 
       const img = await cargarImagen(p.img);
       if (img) {
         const ratio = img.width / img.height;
         let maxW = boxW - padImg, maxH = boxH - padImg;
-        if (ratio > 1.8)  maxW = boxW * 0.92;
-        if (ratio < 0.55) maxH = boxH * 0.90;
-        // No agrandar demasiado una foto chica: se vería pixelada
-        const escala = Math.min(maxW / img.width, maxH / img.height, 1.15);
+        if (ratio > 1.8)  maxW = boxW * 0.96;
+        if (ratio < 0.55) maxH = boxH * 0.94;
+        // Las fotos del proveedor suelen venir a 600px o menos. El limite
+        // de 1.15 las dejaba muy chicas dentro de la tarjeta; con 2.2 se
+        // aprovecha el espacio sin que se note pixelado a esta escala.
+        const escala = Math.min(maxW / img.width, maxH / img.height, 2.2);
         const w = img.width * escala, h = img.height * escala;
+        // Centrada en su caja, tanto horizontal como verticalmente
         x.drawImage(img, boxX + (boxW - w) / 2, boxY + (boxH - h) / 2, w, h);
       } else {
         x.fillStyle = "#fafafc";
@@ -2320,8 +2338,7 @@ async function generarPlaca() {
 
       // El texto se ancla abajo. Si no entra, la foto cede espacio: es
       // preferible una foto mas chica a que el precio quede cortado.
-      let ty = Math.max(cy + padding + fotoH + 14,
-                        cy + cardH - padding - altoTxt);
+      let ty = yTexto;
       // Los textos van alineados a la izquierda, como en el diseño.
       // El carrito ocupa la esquina inferior derecha, asi que se reserva
       // ese ancho para que el precio no se le encime.
