@@ -167,6 +167,10 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
   text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px}
 .det-nom{font-size:16px;font-weight:700}
 .det-dato{font-size:13px;color:var(--texto);margin-top:3px}
+.acciones-wa{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.wa-btn.wa-sec{background:var(--blanco);color:var(--texto);
+  border:1.5px solid var(--linea);margin-top:0;cursor:pointer}
+.wa-btn.wa-sec:hover{background:var(--fondo);border-color:var(--marca-borde)}
 .wa-btn{display:inline-flex;align-items:center;gap:7px;margin-top:11px;font-size:13px;
   font-weight:600;padding:9px 17px;border-radius:var(--r);background:var(--wa);
   color:#fff;text-decoration:none}
@@ -854,7 +858,12 @@ async function abrirPedido(nro) {
         ${p.dni ? `<div class="det-dato">DNI ${esc(p.dni)}</div>` : ""}
         <div class="det-dato">${p.tipo_entrega === "envio"
           ? esc(p.direccion || "Envío a domicilio") : "Retiro en local"}</div>
-        ${tel ? `<a class="wa-btn" href="https://wa.me/${tel.length <= 10 ? "54" + tel : tel}" target="_blank">Escribir por WhatsApp</a>` : ""}
+        ${tel ? `
+        <div class="acciones-wa">
+          <a class="wa-btn" href="${waLink(tel)}" target="_blank">Escribir</a>
+          <button class="wa-btn wa-sec" data-wa-seg="${esc(p.nro)}">Enviar seguimiento</button>
+          <button class="wa-btn wa-sec" data-wa-estado="${esc(p.nro)}">Avisar el estado</button>
+        </div>` : ""}
       </div>
 
       <div class="det-sec">
@@ -883,6 +892,9 @@ async function abrirPedido(nro) {
         <div style="margin-top:9px">
           <textarea id="txtNota" placeholder="Nota (opcional)"></textarea>
         </div>
+        ${tel ? `<label class="check" style="margin-top:6px">
+          <input type="checkbox" id="chkAvisar" checked>
+          <span>Avisarle al cliente por WhatsApp</span></label>` : ""}
         <button class="btn btn-full" id="btnGuardarEstado" style="margin-top:9px">Guardar</button>
         <div id="avisoEstado"></div>
       </div>
@@ -907,6 +919,12 @@ async function abrirPedido(nro) {
       </div>` : ""}
     `;
     $("btnVolver").onclick = () => d.classList.add("oculto");
+    d.querySelectorAll("[data-wa-seg]").forEach(b => {
+      b.onclick = () => enviarWA(b.dataset.waSeg, "seguimiento");
+    });
+    d.querySelectorAll("[data-wa-estado]").forEach(b => {
+      b.onclick = () => enviarWA(b.dataset.waEstado, "estado");
+    });
     $("btnGuardarEstado").onclick = () => guardarEstado(nro);
     cargarComprobantes(nro, p.telefono);
   } catch (e) {
@@ -926,6 +944,14 @@ async function guardarEstado(nro) {
     if (!r.ok) throw new Error(r.error || "No se pudo guardar");
     avisar("avisoEstado", "Estado actualizado");
     cargarResumen(); cargarPedidos();
+
+    // Ofrecer avisarle al cliente si el estado nuevo lo amerita
+    const nuevo = $("selEstado").value;
+    const avisables = ["Pago verificado", "En preparacion", "Enviado",
+                       "Listo para retirar", "Entregado"];
+    if (avisables.includes(nuevo) && $("chkAvisar") && $("chkAvisar").checked) {
+      setTimeout(() => enviarWA(nro, "estado"), 400);
+    }
     setTimeout(() => abrirPedido(nro), 800);
   } catch (e) {
     avisar("avisoEstado", e.message, false);
@@ -933,6 +959,65 @@ async function guardarEstado(nro) {
     btn.disabled = false; btn.textContent = "Guardar";
   }
 }
+
+// ── Mensajes de WhatsApp al cliente ─────────────────────────────
+function waLink(tel, texto) {
+  const n = String(tel || "").replace(/\D/g, "");
+  const num = n.length <= 10 ? "54" + n : n;
+  return "https://wa.me/" + num + (texto ? "?text=" + encodeURIComponent(texto) : "");
+}
+
+const linkSeguimiento = nro => `${SITIO}/seguimiento.html?pedido=${encodeURIComponent(nro)}`;
+
+// Qué decirle al cliente según en qué estado está su pedido
+const MENSAJE_ESTADO = {
+  "Pendiente verificacion": p =>
+    `Todavía estamos esperando el comprobante de tu pago.\n` +
+    `Podés enviarlo desde acá:\n${SITIO}/comprobante/?p=${p.nro}`,
+  "Pago verificado": () =>
+    `Ya confirmamos tu pago. Estamos preparando el pedido.`,
+  "En preparacion": () =>
+    `Tu pedido está en preparación. Te avisamos apenas esté listo.`,
+  "Enviado": p =>
+    `Tu pedido ya salió${p.direccion ? " hacia " + p.direccion : ""}.`,
+  "Listo para retirar": () =>
+    `Tu pedido está listo para retirar en el local.`,
+  "Entregado": () =>
+    `Tu pedido fue entregado. ¡Gracias por tu compra!`,
+  "Cancelado": () =>
+    `Tu pedido fue cancelado. Si fue un error, escribinos.`,
+};
+
+function armarMensajeSeguimiento(p) {
+  const nombre = String(p.cliente || "").split(" ")[0];
+  return `Hola ${nombre}! Te paso el seguimiento de tu pedido ${p.nro}.\n\n` +
+         `Podés ver el estado acá:\n${linkSeguimiento(p.nro)}\n\n` +
+         `Total: ${plata(p.total)}\n` +
+         `Estado actual: ${p.estado}`;
+}
+
+function armarMensajeEstado(p) {
+  const nombre = String(p.cliente || "").split(" ")[0];
+  const cuerpo = MENSAJE_ESTADO[p.estado];
+  return `Hola ${nombre}! Novedades de tu pedido ${p.nro}.\n\n` +
+         (cuerpo ? cuerpo(p) + "\n\n" : `Estado: ${p.estado}\n\n`) +
+         `Seguilo acá:\n${linkSeguimiento(p.nro)}`;
+}
+
+// Abre WhatsApp con el mensaje ya escrito
+async function enviarWA(nro, tipo) {
+  try {
+    const r = await api("/panel/pedido/" + encodeURIComponent(nro));
+    if (!r.ok) throw new Error(r.error || "No se pudo leer el pedido");
+    const p = r.pedido;
+    if (!p.telefono) throw new Error("El pedido no tiene teléfono cargado");
+    const texto = tipo === "estado" ? armarMensajeEstado(p) : armarMensajeSeguimiento(p);
+    window.open(waLink(p.telefono, texto), "_blank");
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
 
 // ── Comprobantes de pago ────────────────────────────────────────
 async function cargarComprobantes(nro, telCliente) {
