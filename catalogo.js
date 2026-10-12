@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-12 16:05
-window.JR_VERSION = "2026-10-12 16:05";
+// JR Shop — generado 2026-10-12 19:09
+window.JR_VERSION = "2026-10-12 19:09";
 
 
 const CART_PHONE = "543812235528";
@@ -1181,9 +1181,11 @@ function filtrar() {
   if (!grid) return;
   if (secRecientes) secRecientes.style.display = "";
 
-  // Filtrar las cards (una sola grilla, sin duplicados)
+  // Filtrar las cards (una sola grilla, sin duplicados).
+  // Las que pasan el filtro quedan en _coinciden; se van mostrando por
+  // tandas de LOTE para no pintar 1700 tarjetas de una sola vez.
   const cards = grid.children;
-  let visible = 0;
+  _coinciden = [];
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
     const cat  = card.dataset.cat || "";
@@ -1192,9 +1194,15 @@ function filtrar() {
       const nombre = (card.querySelector(".card-name")?.textContent || "").toLowerCase();
       mostrar = nombre.includes(q);
     }
-    card.classList.toggle("hidden", !mostrar);
-    if (mostrar) visible++;
+    if (mostrar && (_precioMin || _precioMax)) {
+      const pr = precioDeCard(card);
+      if (_precioMin && pr < _precioMin) mostrar = false;
+      if (_precioMax && pr > _precioMax) mostrar = false;
+    }
+    card.classList.add("hidden");
+    if (mostrar) _coinciden.push(card);
   }
+  const visible = _coinciden.length;
 
   // Encabezado según el filtro activo
   if (titulo) {
@@ -1203,30 +1211,97 @@ function filtrar() {
   }
   if (contador) contador.textContent = "(" + visible + ")";
 
-  // Ordenar solo lo visible
+  // Ordenar lo que coincide
   if (_sortActual !== "novedad" && visible > 1) {
-    const visibles = Array.from(cards).filter(c => !c.classList.contains("hidden"));
-    const precio = c => {
-      const t = c.querySelector(".card-price")?.textContent || "0";
-      return parseFloat(t.replace(/[^0-9]/g, "")) || 0;
-    };
     const nombre = c => c.querySelector(".card-name")?.textContent || "";
-    visibles.sort((a, b) => {
-      if (_sortActual === "precio-asc")  return precio(a) - precio(b);
-      if (_sortActual === "precio-desc") return precio(b) - precio(a);
+    _coinciden.sort((a, b) => {
+      if (_sortActual === "precio-asc")  return precioDeCard(a) - precioDeCard(b);
+      if (_sortActual === "precio-desc") return precioDeCard(b) - precioDeCard(a);
       if (_sortActual === "nombre")      return nombre(a).localeCompare(nombre(b));
       return 0;
     });
     const frag = document.createDocumentFragment();
-    visibles.forEach(c => frag.appendChild(c));
+    _coinciden.forEach(c => frag.appendChild(c));
     grid.appendChild(frag);
   }
+
+  // Mostrar la primera tanda
+  _mostradas = 0;
+  mostrarLote();
 
   if (secRecientes) secRecientes.style.display = visible === 0 ? "none" : "";
   noResults.style.display = visible === 0 ? "block" : "none";
 }
 
+// ── Mostrar el catálogo por tandas ───────────────────────────────────────────
+// Antes se pintaban las 1700 tarjetas juntas y el scroll se trababa en
+// teléfonos modestos. Ahora entran de a LOTE, por botón o al llegar al final.
+var LOTE = 60;
+var _coinciden = [];
+var _mostradas = 0;
+var _precioMin = 0;
+var _precioMax = 0;
+
+function precioDeCard(c) {
+  const t = c.querySelector(".card-price")?.textContent || "0";
+  return parseFloat(t.replace(/[^0-9]/g, "")) || 0;
+}
+
+function mostrarLote() {
+  const hasta = Math.min(_mostradas + LOTE, _coinciden.length);
+  for (let i = _mostradas; i < hasta; i++) _coinciden[i].classList.remove("hidden");
+  _mostradas = hasta;
+
+  const btn = document.getElementById("verMas");
+  if (!btn) return;
+  const quedan = _coinciden.length - _mostradas;
+  btn.style.display = quedan > 0 ? "" : "none";
+  btn.textContent = quedan > LOTE
+    ? "Ver más productos (" + quedan + " restantes)"
+    : "Ver los últimos " + quedan;
+}
+
+function filtrarPrecio(min, max, el) {
+  _precioMin = min; _precioMax = max;
+  const menu = document.getElementById("precioMenu");
+  if (menu) menu.querySelectorAll(".sort-item").forEach(i => i.classList.remove("active"));
+  if (el) el.classList.add("active");
+  const lbl = document.getElementById("precioLabel");
+  if (lbl) lbl.textContent = (!min && !max) ? "Precio" : (el ? el.textContent.trim() : "Precio");
+  if (menu) menu.classList.remove("open");
+  filtrar();
+  const sec = document.getElementById("sec-recientes");
+  if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function togglePrecioMenu() {
+  const m = document.getElementById("precioMenu");
+  if (m) m.classList.toggle("open");
+  // Cerrar los otros menús desplegables
+  const s = document.getElementById("sortMenu");
+  if (s) s.classList.remove("open");
+  const c = document.getElementById("catDropdownMenu");
+  if (c) c.classList.remove("open");
+}
+
 if (searchInput) searchInput.addEventListener("input", filtrar);
+
+// "Ver más" y carga automática al llegar al final de la tanda
+(function () {
+  const btn = document.getElementById("verMas");
+  if (!btn) return;
+  btn.addEventListener("click", mostrarLote);
+
+  // Primera pasada: sin esto la carga inicial mostraria las 1700 tarjetas,
+  // porque filtrar() solo se disparaba al buscar u ordenar.
+  filtrar();
+  // Si el navegador lo soporta, la tanda siguiente entra sola al acercarse
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (entradas) {
+      if (entradas[0].isIntersecting && btn.style.display !== "none") mostrarLote();
+    }, { rootMargin: "600px" }).observe(btn);
+  }
+})();
 
 function getQuery() {
   return (document.getElementById("buscarDesktop") || document.getElementById("buscarMobile"))?.value.toLowerCase().trim() || "";
@@ -1294,9 +1369,11 @@ function irANovedades() {
 function toggleSortMenu() {
   var m = document.getElementById("sortMenu");
   if (m) m.classList.toggle("open");
-  // Cerrar cat menu si está abierto
+  // Cerrar los otros menús desplegables
   var cm = document.getElementById("catDropdownMenu");
   if (cm) cm.classList.remove("open");
+  var pm = document.getElementById("precioMenu");
+  if (pm) pm.classList.remove("open");
 }
 
 function ordenarPor(tipo, el) {
@@ -2201,10 +2278,9 @@ function cerrarAyuda() {
   }
 }
 
-// Mostrar automáticamente la primera vez
-if (!localStorage.getItem(AYUDA_KEY)) {
-  setTimeout(abrirAyuda, 1500);
-}
+// No se abre solo. Antes saltaba a los 1,5 s en la primera visita y le
+// tapaba el catalogo al cliente justo cuando habia enganchado con algo.
+// Queda disponible desde el boton "Ayuda" del encabezado.
 
 // ── Carrusel de novedades ─────────────────────────────────────────────────────
 (function() {

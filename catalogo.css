@@ -167,6 +167,15 @@ header{background:var(--blanco);position:sticky;top:0;z-index:100;box-shadow:var
   transition:border-color .15s;
 }
 .sort-btn:hover{border-color:var(--marca-3);color:var(--marca-2)}
+
+/* Botón de la tanda siguiente del catálogo */
+#verMasWrap{display:flex;justify-content:center;padding:26px 0 8px}
+.ver-mas{
+  background:var(--blanco);color:var(--marca);border:1.5px solid var(--marca-borde);
+  border-radius:999px;padding:13px 30px;font-size:14px;font-weight:700;
+  cursor:pointer;transition:background .15s,border-color .15s;
+}
+.ver-mas:hover{background:var(--marca-claro);border-color:var(--marca-3)}
 .sort-menu{
   display:none;position:absolute;top:calc(100% + 4px);right:0;
   background:var(--blanco);border:1px solid var(--linea);border-radius:var(--r-md);
@@ -1141,7 +1150,26 @@ main{max-width:1400px;margin:0 auto;padding:0 20px 120px}
 .stat-dot{width:7px;height:7px;border-radius:50%;background:var(--verde);animation:pulse 2s infinite}
 .stat-num{font-weight:700;color:var(--texto)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-@media(max-width:1100px){.header-stats{display:none}}
+/* El contador de visitas/online mostraba "—" cuando la API no respondia y
+   no le sirve al cliente para comprar: se oculta. */
+.header-stats{display:none !important}
+
+/* ══ MOVIL: encabezado y flotantes ══ */
+@media(max-width:768px){
+  /* Fila 1: buscador a todo el ancho. Fila 2: categorias, precio, orden.
+     Antes los tres competian por la misma fila y el buscador quedaba en 1 letra. */
+  .nav-in{flex-wrap:wrap;gap:8px;padding:8px 12px}
+  .search-mobile{order:-1;flex:1 1 100%;padding:0}
+  .search-mobile input{padding:12px 14px;font-size:16px;border-radius:12px}  /* 16px: iOS no hace zoom */
+  .cat-dropdown-btn,.sort-btn{margin:0;padding:10px 11px;font-size:12px;gap:6px}
+  .cat-dropdown-btn{letter-spacing:0}
+  .cat-dropdown-btn .arrow,.sort-btn .arrow{display:none}   /* que entren las tres en una fila */
+  .nav-right{margin-left:auto;gap:6px}
+  #btnTop{left:12px;bottom:16px}
+}
+/* La ayuda ya esta en el encabezado: un flotante menos tapando productos */
+#btnAyuda{display:none !important}
+#btnTop{bottom:24px}
 .logo-box{
   width:42px;height:42px;background:var(--marca-2);border-radius:10px;
   display:flex;align-items:center;justify-content:center;
