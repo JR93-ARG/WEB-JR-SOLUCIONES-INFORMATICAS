@@ -1154,6 +1154,18 @@ main{max-width:1400px;margin:0 auto;padding:0 20px 120px}
    no le sirve al cliente para comprar: se oculta. */
 .header-stats{display:none !important}
 
+/* Escala de descuento del modal de producto */
+.desc-info{margin-top:8px;border:1px solid var(--marca-borde);background:var(--marca-claro);border-radius:12px;padding:12px 14px}
+.desc-info-t{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--marca)}
+.desc-escala{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+.desc-tramo{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:9px;background:var(--blanco);border:1.5px solid transparent;text-align:center}
+.desc-tramo-pct{font-size:15px;font-weight:800;color:var(--tinta)}
+.desc-tramo-rango{font-size:10px;line-height:1.25;color:var(--suave)}
+.desc-tramo.es-este{border-color:var(--marca-2);background:var(--marca-2)}
+.desc-tramo.es-este .desc-tramo-pct,.desc-tramo.es-este .desc-tramo-rango{color:#fff}
+.desc-info-n{margin-top:9px;font-size:11px;line-height:1.4;color:var(--suave)}
+@media(max-width:520px){.desc-escala{gap:4px}.desc-tramo{padding:8px 2px}.desc-tramo-pct{font-size:14px}.desc-tramo-rango{font-size:9.5px}}
+
 /* Con busqueda/filtro activo se ven solo los resultados */
 body.filtrando .hero,
 body.filtrando .cats-grid,

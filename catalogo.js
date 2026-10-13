@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-13 02:26
-window.JR_VERSION = "2026-10-13 02:26";
+// JR Shop — generado 2026-10-13 02:58
+window.JR_VERSION = "2026-10-13 02:58";
 
 
 const CART_PHONE = "543812235528";
@@ -1584,13 +1584,32 @@ function abrirProducto(dataStr) {
   if (descInfoEl) {
     const pc = p.precioCatalogo || 0;
     const pctInd = p.pctIndTexto || 5;
+    // Escala de descuento por monto del carrito. El tramo de este producto
+    // queda resaltado. (Mismos cortes que usa el carrito.)
+    var tramos = [
+      { txt: "Hasta $20 mil",  pct: 5,  max: 20000 },
+      { txt: "$20 a $50 mil", pct: 10, max: 50000 },
+      { txt: "$50 a $100 mil", pct: 15, max: 100000 },
+      { txt: "$100 a $200 mil", pct: 18, max: 200000 },
+      { txt: "Más de $200 mil", pct: 20, max: Infinity }
+    ];
+    var actual = -1;
+    for (var t = 0; t < tramos.length; t++) { if (pc <= tramos[t].max) { actual = t; break; } }
     descInfoEl.innerHTML = pc > 0
-      ? '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;font-size:11px;color:#555;margin-top:4px">'
-        + '<strong style="color:#f59e0b">💡 Este artículo tiene ' + pctInd + '% off pagando con transferencia</strong><br>'
-        + 'Mientras más artículos sumes, mayor descuento en el total:<br>'
-        + '&nbsp;&nbsp;• Hasta $20k → 5% · $20k–$50k → 10% · $50k–$100k → 15%<br>'
-        + '&nbsp;&nbsp;• $100k–$200k → 18% · +$200k → <strong>20% off</strong><br>'
-        + '<em>El descuento final se calcula sobre el total del carrito.</em>'
+      ? '<div class="desc-info">'
+        + '<div class="desc-info-t">'
+        +   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.2"/></svg>'
+        +   'Sumá productos y ahorrá más'
+        + '</div>'
+        + '<div class="desc-escala">'
+        +   tramos.map(function(x, i) {
+              return '<div class="desc-tramo' + (i === actual ? ' es-este' : '') + '">'
+                + '<span class="desc-tramo-pct">' + x.pct + '%</span>'
+                + '<span class="desc-tramo-rango">' + x.txt + '</span>'
+                + '</div>';
+            }).join("")
+        + '</div>'
+        + '<div class="desc-info-n">El descuento se calcula sobre el total del carrito y se aplica pagando con transferencia.</div>'
         + '</div>'
       : '';
   }
@@ -1661,9 +1680,21 @@ function abrirProducto(dataStr) {
   var btnShare = document.getElementById("prodBtnShare");
   if (btnShare) {
     var linkProd = "https://www.jrshop.com.ar/p/" + p.id + ".html";
-    btnShare.href = "https://wa.me/?text=" + encodeURIComponent(
-      limpiarTextoCliente(p.name) + "\n" + precioTexto + " con transferencia\n" + linkProd
-    );
+    // Texto para estados y chats de WhatsApp: *negrita* y emojis, y el link al
+    // final para que la vista previa muestre la foto. Se invita a comprar en
+    // la web y no se habla de formas de pago. "Desde" porque el precio es el
+    // mas bajo (el de transferencia).
+    var nombreWa = limpiarTextoCliente(p.name).replace(/\*/g, "").trim();
+    var textoWa = [
+      "🔥 *" + nombreWa + "*",
+      "",
+      "💰 Desde *" + precioTexto + "*",
+      "🚚 Envíos a todo el país",
+      "",
+      "🛒 *Comprá online, fácil y seguro:*",
+      "👉 " + linkProd
+    ].join("\n");
+    btnShare.href = "https://wa.me/?text=" + encodeURIComponent(textoWa);
     btnShare.title = "Compartir este producto";
   }
   // Conectar simulador de crédito con este producto
