@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-12 19:09
-window.JR_VERSION = "2026-10-12 19:09";
+// JR Shop — generado 2026-10-13 01:27
+window.JR_VERSION = "2026-10-13 01:27";
 
 
 const CART_PHONE = "543812235528";
@@ -366,10 +366,20 @@ function calcularProblemaMin() {
   const itemsMin = cart.filter(i => i.reqMin);
   if (!itemsMin.length) return null;
   const totalBaseMin = itemsMin.reduce((s,i) => s + (parseFloat(i.baseUnits||0) * i.qty), 0);
-  const minimo = 1000; // unidades relativas
+  const minimo = 1000; // unidades relativas (1000 = el minimo del proveedor)
   if (totalBaseMin >= minimo) return null;
   const falta = minimo - totalBaseMin;
-  return { itemsMin, totalBaseMin, falta, minimo };
+
+  // 'falta' esta en unidades relativas, no en pesos: mostrarla tal cual decia
+  // "te faltan $ 82" cuando en realidad faltaban unos $ 4.000. Se pasa a pesos
+  // de catalogo (los que ve el cliente) con la proporcion de lo que ya tiene
+  // en el carrito de esta linea.
+  const valorCarritoMin = itemsMin.reduce((s,i) => s + (Number(i.price||0) * i.qty), 0);
+  let faltaPesos = totalBaseMin > 0
+    ? falta * (valorCarritoMin / totalBaseMin)
+    : 0;
+  faltaPesos = Math.ceil(faltaPesos / 100) * 100;   // redondeo hacia arriba, de a $100
+  return { itemsMin, totalBaseMin, falta, faltaPesos, minimo };
 }
 
 function mostrarPaso0() {
@@ -377,10 +387,10 @@ function mostrarPaso0() {
   if (!prob) { irAStep(1); return; }
 
   // Construir advertencia
-  const { itemsMin, totalBaseMin, falta } = prob;
+  const { itemsMin, totalBaseMin, faltaPesos } = prob;
   const warnEl = document.getElementById("minWarningText");
   warnEl.innerHTML = `Algunos artículos de tu pedido requieren un mínimo de compra combinado.<br>
-    <strong>Te faltan ${fmt(falta)} en artículos de esta línea</strong> para poder procesar el pedido.<br>
+    <strong>Te faltan aprox. ${fmt(faltaPesos)} en artículos de esta línea</strong> para poder procesar el pedido.<br>
     Podés agregar más artículos o ver alternativas disponibles desde 1 unidad.`;
 
   // Sugerencias de productos que completan el minimo
