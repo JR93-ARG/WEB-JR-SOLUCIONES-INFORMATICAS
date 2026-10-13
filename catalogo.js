@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-13 01:27
-window.JR_VERSION = "2026-10-13 01:27";
+// JR Shop — generado 2026-10-13 02:26
+window.JR_VERSION = "2026-10-13 02:26";
 
 
 const CART_PHONE = "543812235528";
@@ -1182,7 +1182,17 @@ function filtrar() {
   const grid          = document.getElementById("gridPrincipal");
   const titulo        = document.getElementById("tituloGrilla");
   const contador      = document.getElementById("contadorGrilla");
-  const esTodos       = catActiva === "Todos" && !q;
+  const esTodos       = catActiva === "Todos" && !q && !_precioMin && !_precioMax;
+
+  // Con una busqueda o filtro activo, la portada, los iconos de categorias y
+  // la barra de beneficios solo estorban: empujaban los resultados fuera de
+  // la pantalla (en el celular no se veia ninguno sin hacer scroll).
+  const estabaFiltrando = document.body.classList.contains("filtrando");
+  document.body.classList.toggle("filtrando", !esTodos);
+  const btnLimpiar = document.getElementById("btnLimpiar");
+  if (btnLimpiar) btnLimpiar.hidden = esTodos;
+  // Al empezar a filtrar se vuelve arriba, donde ahora estan los resultados
+  if (!esTodos && !estabaFiltrando && window.scrollY > 0) window.scrollTo({ top: 0 });
 
   // Novedades y destacados: solo en la vista principal sin filtros
   if (secNovedades)  secNovedades.style.display  = esTodos ? "" : "none";
@@ -1282,6 +1292,17 @@ function filtrarPrecio(min, max, el) {
   filtrar();
   const sec = document.getElementById("sec-recientes");
   if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// Vuelve a la vista principal: sin busqueda, categoria ni precio.
+function limpiarFiltros() {
+  _precioMin = 0; _precioMax = 0;
+  const lbl = document.getElementById("precioLabel");
+  if (lbl) lbl.textContent = "Precio";
+  document.querySelectorAll("#precioMenu .sort-item").forEach((i, n) => i.classList.toggle("active", n === 0));
+  const selCat = document.getElementById("searchCat");
+  if (selCat) selCat.value = "Todos";
+  seleccionarCat("Todos", document.querySelector('.cat-dropdown-item[data-cat="Todos"]'));
 }
 
 function togglePrecioMenu() {

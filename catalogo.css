@@ -1154,6 +1154,17 @@ main{max-width:1400px;margin:0 auto;padding:0 20px 120px}
    no le sirve al cliente para comprar: se oculta. */
 .header-stats{display:none !important}
 
+/* Con busqueda/filtro activo se ven solo los resultados */
+body.filtrando .hero,
+body.filtrando .cats-grid,
+body.filtrando .benef-bar{display:none}
+.limpiar-filtros{
+  margin-left:12px;vertical-align:middle;background:var(--blanco);color:var(--marca);
+  border:1.5px solid var(--marca-borde);border-radius:999px;padding:6px 14px;
+  font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;cursor:pointer;white-space:nowrap;
+}
+.limpiar-filtros:hover{background:var(--marca-claro)}
+
 /* ══ MOVIL: encabezado y flotantes ══ */
 @media(max-width:768px){
   /* Fila 1: buscador a todo el ancho. Fila 2: categorias, precio, orden.
