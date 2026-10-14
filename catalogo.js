@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-13 02:58
-window.JR_VERSION = "2026-10-13 02:58";
+// JR Shop — generado 2026-10-14 19:32
+window.JR_VERSION = "2026-10-14 19:32";
 
 
 const CART_PHONE = "543812235528";
@@ -1520,9 +1520,22 @@ function cambiarQtyModal(delta) {
   el.value = v;
 }
 
+// El boton "atras" del celular tiene que cerrar el producto, no sacar al
+// cliente del sitio: al abrir se agrega una entrada al historial y popstate
+// cierra el modal.
+var _prodEnHistorial = false;
+window.addEventListener("popstate", function() {
+  var ov = document.getElementById("prodOverlay");
+  if (ov && ov.classList.contains("open")) { _prodEnHistorial = false; cerrarProducto(true); }
+});
+
 function abrirProducto(dataStr) {
   var p;
   try { p = JSON.parse(dataStr); } catch(e) { return; }
+
+  if (!_prodEnHistorial) {
+    try { history.pushState({ jrProd: 1 }, ""); _prodEnHistorial = true; } catch(e) {}
+  }
 
   const precioConDesc = p.precioConDesc || Math.round((p.precioCatalogo||0)*0.95);
   const precioTexto   = fmtMV(precioConDesc);
@@ -1685,14 +1698,15 @@ function abrirProducto(dataStr) {
     // la web y no se habla de formas de pago. "Desde" porque el precio es el
     // mas bajo (el de transferencia).
     var nombreWa = limpiarTextoCliente(p.name).replace(/\*/g, "").trim();
+    // Formato probado en WhatsApp: sin lineas vacias y con el link SOLO en la
+    // ultima linea (sin emoji adelante). Con otro formato la vista previa
+    // del link (foto, nombre) no siempre se genera.
     var textoWa = [
       "🔥 *" + nombreWa + "*",
-      "",
       "💰 Desde *" + precioTexto + "*",
       "🚚 Envíos a todo el país",
-      "",
       "🛒 *Comprá online, fácil y seguro:*",
-      "👉 " + linkProd
+      linkProd
     ].join("\n");
     btnShare.href = "https://wa.me/?text=" + encodeURIComponent(textoWa);
     btnShare.title = "Compartir este producto";
@@ -1728,10 +1742,20 @@ function abrirProducto(dataStr) {
   }
 
   document.getElementById("prodOverlay").classList.add("open");
+  // Siempre desde arriba. Tiene que ser DESPUES de mostrarlo: con el modal
+  // oculto (display:none) el navegador ignora scrollTop y conserva la
+  // posicion del producto anterior, y el nuevo se abria "cortado".
+  var _modal = document.querySelector("#prodOverlay .prod-modal");
+  if (_modal) _modal.scrollTop = 0;
 }
 
-function cerrarProducto() {
+function cerrarProducto(desdeHistorial) {
   document.getElementById("prodOverlay").classList.remove("open");
+  // Si lo cerro el boton X (no "atras"), se retira la entrada del historial
+  if (_prodEnHistorial && desdeHistorial !== true) {
+    _prodEnHistorial = false;
+    try { history.back(); } catch(e) {}
+  }
   // Restaurar botones de carrito y WA
   var prodActions = document.querySelector(".prod-actions");
   if (prodActions) prodActions.style.display = "flex";

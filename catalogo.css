@@ -518,18 +518,37 @@ main{max-width:1400px;margin:0 auto;padding:0 20px 120px}
 .prod-overlay.open{display:flex}
 .prod-modal{
   background:var(--blanco);border-radius:var(--r-xl);width:100%;max-width:1080px;
-  max-height:92vh;overflow-y:auto;box-shadow:var(--sombra-lg);
+  max-height:92vh;max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;
+  box-shadow:var(--sombra-lg);
   animation:popIn .22s ease;position:relative;
 }
 @keyframes popIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+/* Sticky: acompana al scroll del modal. Con position:absolute el boton se iba
+   de la pantalla al bajar y no habia forma de cerrar el producto. El margen
+   negativo evita que ocupe una fila propia arriba de la imagen. */
 .prod-close{
-  position:absolute;top:18px;right:18px;z-index:5;
+  position:sticky;top:12px;z-index:5;
+  margin:12px 14px -54px auto;
   background:var(--blanco);color:var(--texto);border:1px solid var(--linea);
-  width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:19px;
+  width:42px;height:42px;border-radius:50%;cursor:pointer;font-size:22px;
   display:flex;align-items:center;justify-content:center;box-shadow:var(--sombra-md);
   transition:all .15s;
 }
 .prod-close:hover{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+.prod-close .pc-vol{display:none}
+/* Celular: barra fija con "Volver" (lo habitual en apps) en lugar de una X
+   flotante que tapaba los botones de abajo al scrollear. */
+@media(max-width:860px){
+  .prod-close{
+    top:0;width:100%;height:52px;margin:0;border-radius:0;
+    border:0;border-bottom:1px solid var(--linea);box-shadow:none;
+    justify-content:flex-start;padding:0 18px;gap:8px;
+    font-size:15px;font-weight:700;
+  }
+  .prod-close:hover{background:var(--blanco);color:var(--texto);border-color:var(--linea)}
+  .prod-close .pc-x{display:none}
+  .prod-close .pc-vol{display:inline}
+}
 .prod-top{display:grid;grid-template-columns:1fr 1fr;gap:0}
 @media(max-width:860px){.prod-top{grid-template-columns:1fr}}
 .prod-img-wrap{
@@ -1213,7 +1232,7 @@ body.filtrando .benef-bar{display:none}
   #mapaUbicacion{height:210px}
   .form-row.cols-2{grid-template-columns:1fr}
   .prod-overlay{padding:0;align-items:flex-end}
-  .prod-modal{border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:94vh}
+  .prod-modal{border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:94vh;max-height:94dvh}
 }
 
 /* ══ PRINT ══ */
