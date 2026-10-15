@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-14 19:32
-window.JR_VERSION = "2026-10-14 19:32";
+// JR Shop — generado 2026-10-15 15:47
+window.JR_VERSION = "2026-10-15 15:47";
 
 
 const CART_PHONE = "543812235528";
