@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-19 19:59
-window.JR_VERSION = "2026-10-19 19:59";
+// JR Shop — generado 2026-10-19 20:12
+window.JR_VERSION = "2026-10-19 20:12";
 
 
 const CART_PHONE = "543812235528";
@@ -1727,7 +1727,17 @@ function abrirProducto(dataStr) {
     };
     menu.onclick = function (ev) { ev.stopPropagation(); };
     document.getElementById("shWa").onclick = cerrarMenu;
-    document.getElementById("shFb").onclick = cerrarMenu;
+    document.getElementById("shFb").onclick = function (ev) {
+      cerrarMenu();
+      // En el celular, facebook.com/sharer abre la app de Facebook sin el
+      // link. Se usa la hoja de compartir del sistema, solo con el link, y
+      // Facebook arma la vista previa (foto + titulo) leyendo la pagina.
+      var tactil = window.matchMedia && window.matchMedia("(pointer:coarse)").matches;
+      if (tactil && navigator.share) {
+        ev.preventDefault();
+        navigator.share({ url: linkProd }).catch(function () {});
+      }
+    };
     // Instagram, historias, Telegram, etc: el menu de compartir del celular,
     // con la FOTO del producto como archivo (un link solo nunca muestra foto
     // en Instagram). Si el equipo no lo soporta, se oculta la opcion.
