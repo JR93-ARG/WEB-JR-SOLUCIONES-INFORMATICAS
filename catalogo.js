@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-19 16:06
-window.JR_VERSION = "2026-10-19 16:06";
+// JR Shop — generado 2026-10-19 19:59
+window.JR_VERSION = "2026-10-19 19:59";
 
 
 const CART_PHONE = "543812235528";
@@ -1708,8 +1708,66 @@ function abrirProducto(dataStr) {
       "🛒 *Comprá online, fácil y seguro:*",
       linkProd
     ].join("\n");
-    btnShare.href = "https://wa.me/?text=" + encodeURIComponent(textoWa);
-    btnShare.title = "Compartir este producto";
+    var menu = document.getElementById("shareMenu");
+    var cerrarMenu = function () {
+      menu.classList.remove("open");
+      btnShare.setAttribute("aria-expanded", "false");
+    };
+    document.getElementById("shWa").href = "https://wa.me/?text=" + encodeURIComponent(textoWa);
+    // Facebook arma la tarjeta (foto, titulo) leyendo la pagina /p/<id>.html
+    document.getElementById("shFb").href =
+      "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(linkProd);
+    var txtCopiar = document.getElementById("shCopiarTxt");
+    txtCopiar.textContent = "Copiar link";
+    btnShare.onclick = function (ev) {
+      ev.stopPropagation();
+      var abrir = !menu.classList.contains("open");
+      menu.classList.toggle("open", abrir);
+      btnShare.setAttribute("aria-expanded", abrir ? "true" : "false");
+    };
+    menu.onclick = function (ev) { ev.stopPropagation(); };
+    document.getElementById("shWa").onclick = cerrarMenu;
+    document.getElementById("shFb").onclick = cerrarMenu;
+    // Instagram, historias, Telegram, etc: el menu de compartir del celular,
+    // con la FOTO del producto como archivo (un link solo nunca muestra foto
+    // en Instagram). Si el equipo no lo soporta, se oculta la opcion.
+    var btnMas = document.getElementById("shMas");
+    btnMas.style.display = navigator.share ? "flex" : "none";
+    btnMas.onclick = async function () {
+      cerrarMenu();
+      var datos = { text: textoWa };
+      try {
+        if (p.imgUrl && navigator.canShare) {
+          var resp = await fetch(p.imgUrl);
+          if (!resp.ok) throw new Error("sin foto");
+          var blob = await resp.blob();
+          if (String(blob.type).indexOf("image") !== 0) throw new Error("no es imagen");
+          var ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+          var archivo = new File([blob], "jr-shop-" + p.id + "." + ext, { type: blob.type || "image/jpeg" });
+          if (navigator.canShare({ files: [archivo] })) datos.files = [archivo];
+        }
+      } catch (e) { /* sin foto: se comparte solo el texto con el link */ }
+      try { await navigator.share(datos); }
+      catch (e) { /* el usuario cancelo */ }
+    };
+    document.getElementById("shCopiar").onclick = function () {
+      var listo = function () {
+        txtCopiar.textContent = "¡Link copiado!";
+        setTimeout(function () { txtCopiar.textContent = "Copiar link"; cerrarMenu(); }, 1200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(linkProd).then(listo, function () { window.prompt("Copiá el link:", linkProd); });
+      } else { window.prompt("Copiá el link:", linkProd); }
+    };
+    if (!window.__shareCierre) {
+      window.__shareCierre = true;
+      document.addEventListener("click", function () {
+        var m = document.getElementById("shareMenu");
+        if (m) m.classList.remove("open");
+        var b = document.getElementById("prodBtnShare");
+        if (b) b.setAttribute("aria-expanded", "false");
+      });
+    }
   }
   // Conectar simulador de crédito con este producto
   creditoPrecio    = p.precioCatalogo || 0;
