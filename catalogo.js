@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-19 20:12
-window.JR_VERSION = "2026-10-19 20:12";
+// JR Shop — generado 2026-10-20 16:09
+window.JR_VERSION = "2026-10-20 16:09";
 
 
 const CART_PHONE = "543812235528";
@@ -1714,9 +1714,6 @@ function abrirProducto(dataStr) {
       btnShare.setAttribute("aria-expanded", "false");
     };
     document.getElementById("shWa").href = "https://wa.me/?text=" + encodeURIComponent(textoWa);
-    // Facebook arma la tarjeta (foto, titulo) leyendo la pagina /p/<id>.html
-    document.getElementById("shFb").href =
-      "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(linkProd);
     var txtCopiar = document.getElementById("shCopiarTxt");
     txtCopiar.textContent = "Copiar link";
     btnShare.onclick = function (ev) {
@@ -1727,39 +1724,6 @@ function abrirProducto(dataStr) {
     };
     menu.onclick = function (ev) { ev.stopPropagation(); };
     document.getElementById("shWa").onclick = cerrarMenu;
-    document.getElementById("shFb").onclick = function (ev) {
-      cerrarMenu();
-      // En el celular, facebook.com/sharer abre la app de Facebook sin el
-      // link. Se usa la hoja de compartir del sistema, solo con el link, y
-      // Facebook arma la vista previa (foto + titulo) leyendo la pagina.
-      var tactil = window.matchMedia && window.matchMedia("(pointer:coarse)").matches;
-      if (tactil && navigator.share) {
-        ev.preventDefault();
-        navigator.share({ url: linkProd }).catch(function () {});
-      }
-    };
-    // Instagram, historias, Telegram, etc: el menu de compartir del celular,
-    // con la FOTO del producto como archivo (un link solo nunca muestra foto
-    // en Instagram). Si el equipo no lo soporta, se oculta la opcion.
-    var btnMas = document.getElementById("shMas");
-    btnMas.style.display = navigator.share ? "flex" : "none";
-    btnMas.onclick = async function () {
-      cerrarMenu();
-      var datos = { text: textoWa };
-      try {
-        if (p.imgUrl && navigator.canShare) {
-          var resp = await fetch(p.imgUrl);
-          if (!resp.ok) throw new Error("sin foto");
-          var blob = await resp.blob();
-          if (String(blob.type).indexOf("image") !== 0) throw new Error("no es imagen");
-          var ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
-          var archivo = new File([blob], "jr-shop-" + p.id + "." + ext, { type: blob.type || "image/jpeg" });
-          if (navigator.canShare({ files: [archivo] })) datos.files = [archivo];
-        }
-      } catch (e) { /* sin foto: se comparte solo el texto con el link */ }
-      try { await navigator.share(datos); }
-      catch (e) { /* el usuario cancelo */ }
-    };
     document.getElementById("shCopiar").onclick = function () {
       var listo = function () {
         txtCopiar.textContent = "¡Link copiado!";
