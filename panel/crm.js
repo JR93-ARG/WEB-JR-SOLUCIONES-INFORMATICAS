@@ -19,21 +19,21 @@
   ];
   const ABIERTAS = ["consulta_nueva", "presupuestado", "en_seguimiento"];
   const NOM_ETAPA = Object.fromEntries(ETAPAS.map(e => [e.id, e.nombre]));
-  const TIPOS_OP = { reparacion: "Reparación", venta: "Venta", mantenimiento: "Mantenimiento", sistema: "Sistema" };
+  // Este panel es solo de la tienda: las oportunidades son siempre ventas de productos.
+  const TIPOS_OP = { venta: "Venta" };
   const TIPOS_CONTACTO = { cliente: "Cliente", interesado: "Interesado", empresa: "Empresa" };
   const ORIGENES = { whatsapp: "WhatsApp", mostrador: "Mostrador", instagram: "Instagram",
                      jrshop: "jrshop.com.ar", referido: "Referido", otro: "Otro" };
-  const TIPOS_ACT = { llamada: "Llamada", whatsapp: "WhatsApp", visita: "Visita",
-                      presupuesto: "Presupuesto", entrega: "Entrega" };
-  const TIPOS_ITEM = { producto: "Producto", repuesto: "Repuesto", mano_de_obra: "Mano de obra", servicio: "Servicio" };
+  const TIPOS_ACT = { llamada: "Llamada", whatsapp: "WhatsApp", presupuesto: "Presupuesto", entrega: "Entrega" };
+  const TIPOS_ITEM = { producto: "Producto" };
   const ESTADOS_PRE = { borrador: "Borrador", enviado: "Enviado", visto: "Visto", aceptado: "Aceptado", rechazado: "Rechazado" };
   const TIPO_EVENTO = { nota: "NOTA", whatsapp: "WHATSAPP", presupuesto: "PRESUPUESTO",
-                        reparacion: "REPARACIÓN", venta: "VENTA", cambio_etapa: "ETAPA" };
+                        venta: "VENTA", cambio_etapa: "ETAPA" };
   const MOTIVOS = ["Precio más barato en otro lado", "Tardamos en responder", "No consiguió el repuesto",
                    "Decidió no hacerlo", "No respondió", "Otro"];
   const DIAS_CONTACTO_VIEJO = 60;
 
-  const R = { pestana: "resumen", rango: "mes", tipoOp: "", filtroContacto: "", buscaContacto: "",
+  const R = { pestana: "resumen", rango: "mes", filtroContacto: "", buscaContacto: "",
               fichaId: null, filtroLinea: "", hoy: null, diaSel: null, preSel: null, estadoPre: "",
               pendientes: 0 };
 
@@ -72,7 +72,7 @@
     const d = new Date(iso);
     return ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"][d.getMonth()] + ". " + d.getFullYear();
   };
-  const montoOp = o => o.monto_estimado ? plata(o.monto_estimado) + (o.es_mensual ? "/mes" : "") : "A definir";
+  const montoOp = o => o.monto_estimado ? plata(o.monto_estimado) : "A definir";
 
   // ── Estilos (verdes del panel; la mono es solo para números) ───
   const link = document.createElement("link");
@@ -407,7 +407,7 @@
         <div class="k-kpi"><div class="l">Tasa de cierre</div><div class="v">${r.tasa_cierre === null ? "—" : r.tasa_cierre + "%"}</div>
           <div class="nt">${r.aceptadas} aceptadas · ${r.perdidas} perdidas ${esc(per)}</div></div>
         <div class="k-kpi osc"><div class="l">Monto en juego</div><div class="v">${plata(r.monto_en_juego)}</div>
-          <div class="nt">${r.abiertas} abierta${r.abiertas === 1 ? "" : "s"}${r.monto_mensual_en_juego ? " · + " + plata(r.monto_mensual_en_juego) + " por mes" : ""}</div></div>
+          <div class="nt">${r.abiertas} abierta${r.abiertas === 1 ? "" : "s"}</div></div>
       </div>
       <div class="k-grid2">
         <section class="k-card"><div class="k-card-cab"><h2>Embudo ${esc(per)}</h2><a href="#" data-p-ir="pipeline">Ver pipeline</a></div>
@@ -435,24 +435,20 @@
   // ═══ 2. PIPELINE ════════════════════════════════════════════════
   let opsCache = [];
   async function pintarPipeline() {
-    const r = await pedir("/panel/crm/pipeline" + (R.tipoOp ? "?tipo=" + R.tipoOp : ""));
+    const r = await pedir("/panel/crm/pipeline");
     opsCache = r.oportunidades;
-    const chip = (k, n) => `<button class="k-chip${R.tipoOp === k ? " on" : ""}" data-tipo-op="${k}">${n}</button>`;
     cuerpo().innerHTML = cabecera("PIPELINE", "Oportunidades abiertas",
       "Cada tarjeta es una consulta que todavía no se cerró. Arrastrala a la etapa siguiente cuando avance (en el celular, tocala).",
       `<button class="k-btn pri" data-acc="nueva-op">+ Nueva oportunidad</button>`) + `
-      <div class="k-chips" style="margin-bottom:14px" role="group" aria-label="Filtrar por tipo">
-        ${chip("", "Todas")}${Object.entries(TIPOS_OP).map(([k, n]) => chip(k, n)).join("")}</div>
       <div class="k-scroll"><div class="k-kanban">
         ${ETAPAS.map(e => {
           const ops = opsCache.filter(o => o.etapa === e.id);
-          const suma = ops.filter(o => !o.es_mensual).reduce((a, o) => a + (Number(o.monto_estimado) || 0), 0);
-          const mes = ops.filter(o => o.es_mensual).reduce((a, o) => a + (Number(o.monto_estimado) || 0), 0);
+          const suma = ops.reduce((a, o) => a + (Number(o.monto_estimado) || 0), 0);
           const leyenda = e.id === "perdido" ? "últimos 60 días" : e.id === "aceptado" ? "últimos 60 días" : "en juego";
           return `<section class="k-col" data-etapa="${e.id}" aria-label="${esc(e.nombre)}">
             <div class="k-col-cab" style="--lin:${e.linea}"><div class="a"><h3>${esc(e.nombre)}</h3>
               <span class="n">${ops.length} oportunidad${ops.length === 1 ? "" : "es"}</span></div>
-              <div class="tot">${[suma || !mes ? plata(suma) : "", mes ? plata(mes) + "/mes" : ""].filter(Boolean).join(" + ")}</div>
+              <div class="tot">${plata(suma)}</div>
               <div style="font-size:11px;color:var(--k-suave)">${leyenda}</div></div>
             ${ops.length ? ops.map(tarjetaOp).join("") : '<div class="k-col-vacia">Sin oportunidades</div>'}
           </section>`;
@@ -460,14 +456,13 @@
       </div></div>`;
   }
 
-  const claseTipo = t => ({ reparacion: "t-rep", venta: "t-ven", mantenimiento: "t-man", sistema: "t-sis" }[t] || "");
   const RELOJ = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>';
 
   function tarjetaOp(o) {
     return `<article class="k-op" draggable="true" data-op="${o.id}">
-      <div class="r1"><span class="cod">${esc(o.codigo)}</span><span class="k-pill ${claseTipo(o.tipo)}" style="font-family:inherit">${esc(etiqueta(TIPOS_OP, o.tipo))}</span></div>
+      <div class="r1"><span class="cod">${esc(o.codigo)}</span><span class="or">${esc(etiqueta(ORIGENES, o.origen))}</span></div>
       <div><div class="cli">${esc(o.contacto)}</div>${o.detalle ? `<div class="det">${esc(corto(o.detalle, 80))}</div>` : ""}</div>
-      <div class="r3"><span class="mt">${montoOp(o)}</span><span class="or">${esc(etiqueta(ORIGENES, o.origen))}</span></div>
+      <div class="r3"><span class="mt">${montoOp(o)}</span></div>
       ${o.proxima_accion ? `<div class="px ${o.accion_urgente ? "nar" : ""}">${RELOJ}<span>${esc(corto(o.proxima_accion, 46))}${o.proxima_accion_fecha ? " · " + esc(textoDia(o.proxima_accion_fecha)) : ""}</span></div>` : ""}
     </article>`;
   }
@@ -534,7 +529,7 @@
   function abrirOp(id) {
     const o = opsCache.find(x => String(x.id) === String(id));
     if (!o) return;
-    abrirModal(`${o.codigo} · ${etiqueta(TIPOS_OP, o.tipo)}`, `
+    abrirModal(`${o.codigo} · Venta`, `
       <div style="font-weight:700;margin-bottom:2px">${esc(o.contacto)}</div>
       <div class="fila-det" style="margin-bottom:10px">${esc(etiqueta(ORIGENES, o.origen))} · ${esc(NOM_ETAPA[o.etapa])}</div>
       <div class="k-etapas" id="opBarra">${ETAPAS.map(e =>
@@ -542,7 +537,7 @@
       ${o.motivo_perdida ? `<div class="fila-det">Motivo: ${esc(o.motivo_perdida)}</div>` : ""}
       <div class="campo" style="margin-top:14px"><label>Detalle</label><textarea id="opDet">${esc(o.detalle || "")}</textarea></div>
       <div class="campo"><label>Monto estimado</label><input type="number" id="opMonto" min="0" value="${Number(o.monto_estimado) || 0}">
-        <label class="check" style="margin-top:6px"><input type="checkbox" id="opMes" ${o.es_mensual ? "checked" : ""}><span>Es un monto mensual</span></label></div>
+</div>
       <div class="campo"><label>Próxima acción</label><input type="text" id="opAcc" maxlength="200" value="${esc(o.proxima_accion || "")}" placeholder="Ej: Llamar para confirmar">
         <input type="date" id="opAccF" style="margin-top:7px" value="${esc(o.proxima_accion_fecha || "")}"></div>
       <div class="campo"><label>Origen</label><select id="opOri">${Object.entries(ORIGENES).map(([k, n]) =>
@@ -553,7 +548,7 @@
       async () => {
         try {
           await pedir(`/panel/crm/oportunidad/${o.id}`, {
-            detalle: $("opDet").value, monto_estimado: $("opMonto").value, es_mensual: $("opMes").checked,
+            detalle: $("opDet").value, monto_estimado: $("opMonto").value,
             proxima_accion: $("opAcc").value, proxima_accion_fecha: $("opAccF").value, origen: $("opOri").value });
           cerrarModal(); irPestana(R.pestana);
           if (R.fichaId) abrirFicha(R.fichaId);
@@ -602,18 +597,16 @@
     const sel = selectorContacto("nc", pre.contacto_id ? { id: pre.contacto_id, nombre: pre.nombre, fijo: !!pre.fijo } : null, null, true);
     abrirModal("Nueva consulta", `
       <div class="campo"><label>Contacto</label>${sel.html}</div>
-      <div class="campo"><label>Qué necesita</label><textarea id="ncDet" placeholder="Ej: Notebook no enciende"></textarea></div>
-      <div class="campo"><label>Tipo</label><select id="ncTipo">${Object.entries(TIPOS_OP).map(([k, n]) =>
-        `<option value="${k}" ${pre.tipo === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+      <div class="campo"><label>Qué quiere comprar</label><textarea id="ncDet" placeholder="Ej: PC para diseño, presupuesto hasta $900.000"></textarea></div>
       <div class="campo"><label>Origen</label><select id="ncOri">${Object.entries(ORIGENES).map(([k, n]) =>
         `<option value="${k}" ${k === (pre.origen || "whatsapp") ? "selected" : ""}>${n}</option>`).join("")}</select></div>
       <div class="campo"><label>Monto estimado (opcional)</label><input type="number" id="ncMonto" min="0" placeholder="0">
-        <label class="check" style="margin-top:6px"><input type="checkbox" id="ncMes"><span>Es un monto mensual</span></label></div>
+</div>
       <div class="campo"><label>Próxima acción (opcional)</label><input type="text" id="ncAcc" maxlength="200" placeholder="Ej: Pasar presupuesto">
         <input type="date" id="ncAccF" style="margin-top:7px"></div>`,
       async () => {
-        const body = { tipo: $("ncTipo").value, origen: $("ncOri").value, detalle: $("ncDet").value,
-          monto_estimado: $("ncMonto").value, es_mensual: $("ncMes").checked,
+        const body = { tipo: "venta", origen: $("ncOri").value, detalle: $("ncDet").value,
+          monto_estimado: $("ncMonto").value,
           proxima_accion: $("ncAcc").value, proxima_accion_fecha: $("ncAccF").value };
         const el = sel.get();
         if (el) body.contacto_id = el.id;
@@ -646,7 +639,7 @@
       "Los clientes que compraron por la web y los que todavía no compraron nada, en un solo lugar.",
       `<button class="k-btn pri" data-acc="nuevo-ct">+ Nuevo contacto</button>`) + `
       <div class="k-barra-filtros">
-        <input class="k-buscar" id="ctBuscar" type="search" placeholder="Buscar por nombre, teléfono o equipo…" value="${esc(R.buscaContacto)}" aria-label="Buscar contacto">
+        <input class="k-buscar" id="ctBuscar" type="search" placeholder="Buscar por nombre o teléfono…" value="${esc(R.buscaContacto)}" aria-label="Buscar contacto">
         <div class="k-chips" role="group" aria-label="Filtrar">${chip("", "Todos")}${chip("cliente", "Clientes")}${chip("interesado", "Interesados")}${chip("empresa", "Empresas")}</div>
       </div>
       <div class="k-tabla-w"><table class="k-tabla"><thead><tr>
@@ -655,7 +648,7 @@
           const u = textoUltimo(c.ultimo_contacto_en);
           return `<tr class="fi" data-ficha="${esc(c.id)}">
             <td><div style="display:flex;align-items:center;gap:10px"><div class="k-ava">${esc(iniciales(c.nombre))}</div>
-              <div><b style="color:var(--k-tinta)">${esc(c.nombre)}</b>${c.equipos ? `<div class="fila-det">🖥 ${esc(corto(c.equipos, 50))}</div>` : ""}</div></div></td>
+              <div><b style="color:var(--k-tinta)">${esc(c.nombre)}</b></div></div></td>
             <td>${pillTipo(c.tipo)}</td>
             <td class="mono" style="font-size:13px;white-space:nowrap">${esc(c.whatsapp || c.telefono || "—")}</td>
             <td style="white-space:nowrap" class="${u.viejo ? "k-nar" : ""}">${esc(u.txt)}</td>
@@ -675,7 +668,7 @@
             <span class="mono">${c.cantidad_compras ? plata(c.total_compras) : ""}</span></div>
           ${c.oportunidad_texto ? `<div class="fila-det" style="margin-top:4px">${esc(corto(c.oportunidad_texto, 60))}</div>` : ""}</div>`;
       }).join("") : '<div class="k-vacio">No se encontraron contactos</div>'}</div>
-      <p class="k-nota">«Último contacto» en naranja: hace más de ${DIAS_CONTACTO_VIEJO} días que no hablamos. Buen público para una promo o un recordatorio de mantenimiento.</p>`;
+      <p class="k-nota">«Último contacto» en naranja: hace más de ${DIAS_CONTACTO_VIEJO} días que no hablamos. Buen público para una promo o un aviso de novedades.</p>`;
     if (enfocado) { const i = $("ctBuscar"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
   }
 
@@ -757,7 +750,7 @@
       const ai = ETAPAS.findIndex(x => x.id === abierta.etapa);
       abiertaHtml = `<section class="k-card"><div class="k-card-cab"><h2>Oportunidad abierta</h2><span class="mono" style="font-size:11px;color:var(--k-suave)">${esc(abierta.codigo)}</span></div>
         <div style="cursor:pointer" data-op-ficha="${abierta.id}"><div style="font-size:14px">${esc(abierta.detalle || "Sin detalle")}</div>
-        <div class="mono" style="font-size:22px;font-weight:600;margin:6px 0">${abierta.monto_estimado ? plata(abierta.monto_estimado) : "A definir"}${abierta.es_mensual ? '<span style="font-size:13px;color:var(--k-suave);font-weight:500"> /mes</span>' : ""}</div></div>
+        <div class="mono" style="font-size:22px;font-weight:600;margin:6px 0">${abierta.monto_estimado ? plata(abierta.monto_estimado) : "A definir"}</div></div>
         <div class="k-etapas" data-barra="${abierta.id}" role="group" aria-label="Etapa ${ai + 1} de 5: ${esc(NOM_ETAPA[abierta.etapa])}">${ETAPAS.map((e, i) =>
           `<button data-etapa="${e.id}" class="${i === ai ? "actual" : i < ai ? "pasada" : ""}">${e.nombre}</button>`).join("")}</div>
         <div style="font-size:13px;color:var(--k-texto)">${esc(NOM_ETAPA[abierta.etapa])}${abierta.proxima_accion ? ` · próximo paso: <b>${esc(abierta.proxima_accion)}${abierta.proxima_accion_fecha ? " · " + esc(textoDia(abierta.proxima_accion_fecha)) : ""}</b>` : ""}</div>
@@ -782,7 +775,7 @@
                 ${(c.etiquetas || []).map(e => `<span class="k-pill" style="font-family:inherit;font-size:12px">${esc(e)}</span>`).join("")}</div></div></div>
           <div class="crm-acc">
             ${tel ? `<a class="k-btn" href="tel:${esc(String(tel).replace(/[^\d+]/g, ""))}">Llamar</a>` : ""}
-            <button class="k-btn" data-acc="nueva-rep">Nueva reparación</button>
+            <button class="k-btn" data-acc="nueva-op-ficha">Nueva consulta</button>
             ${tel ? `<a class="k-btn wa" href="${esc(waLink(tel))}" target="_blank" rel="noopener" data-acc="wa-contacto">Escribir por WhatsApp</a>` : ""}
           </div></div>
 
@@ -792,11 +785,6 @@
               ${dato("WhatsApp", c.whatsapp || c.telefono)}${dato("Email", c.email)}${dato("Dirección", c.direccion)}
               ${dato("Persona de contacto", c.contacto_nombre)}${dato("Notas", c.notas)}
               <div class="f-dato"><span class="k">Último contacto</span><span class="v ${u.viejo ? "k-nar" : ""}">${esc(u.txt)}</span></div></section>
-            <section class="k-card"><div class="k-card-cab"><h2>Equipos registrados</h2><a href="#" data-acc="nuevo-equipo">+ Agregar</a></div>
-              ${r.equipos.length ? r.equipos.map(e => `<div class="f-eq"><div><b>${esc(e.descripcion)}</b>
-                ${e.detalle ? `<div class="fila-det">${esc(e.detalle)}</div>` : ""}</div>
-                <button class="x" data-equipo-borrar="${e.id}" aria-label="Quitar equipo">✕</button></div>`).join("")
-                : '<div class="fila-det">Sin equipos registrados.</div>'}</section>
             <section class="k-card"><div class="k-card-cab"><h2>Para hacer</h2><a href="#" data-acc="nueva-act-ficha">+ Agregar</a></div>
               ${r.actividades.length ? r.actividades.map(a => `<label class="k-act" style="padding:9px 0"><input type="checkbox" data-hecha="${a.id}">
                 <div class="tx"><b>${esc(a.titulo)}</b><span class="${a.vencida ? "k-nar" : ""}">${esc(etiqueta(TIPOS_ACT, a.tipo))} · ${esc(textoDia(a.vence_en))}${a.automatica ? " · automática" : ""}</span></div></label>`).join("")
@@ -820,7 +808,6 @@
           <div class="f-col">
             ${abiertaHtml}
             <section class="k-card"><div class="k-tot">
-              <div><div class="l">Reparaciones</div><div class="v">${t.reparaciones}</div></div>
               <div><div class="l">Compras</div><div class="v">${t.compras}</div></div>
               <div><div class="l">Total gastado</div><div class="v">${plata(t.total_gastado)}</div></div>
               <div><div class="l">Pendiente de verificar${t.pedidos_por_verificar ? " (" + t.pedidos_por_verificar + ")" : ""}</div>
@@ -872,7 +859,7 @@
     }
     const sem = r.semana, totalSem = sem.hechas + sem.pendientes;
     cuerpo().innerHTML = cabecera("ACTIVIDADES", "Lo que hay que hacer",
-      "Llamadas, mensajes, visitas y presupuestos pendientes. Marcá cada uno cuando lo hagas.",
+      "Llamadas, mensajes, entregas y presupuestos pendientes. Marcá cada uno cuando lo hagas.",
       `<button class="k-btn pri" data-acc="nueva-act">+ Nueva actividad</button>`) + `
       <div class="k-semana" role="group" aria-label="Semana">${dias.map((d, i) => {
         const c = pend.filter(a => a.vence_en === d).length;
@@ -967,7 +954,7 @@
           <span style="font-size:13px;color:var(--k-suave)">${p.oportunidad_codigo ? esc(etiqueta(TIPOS_OP, p.oportunidad_tipo)) + " · " + esc(p.oportunidad_codigo) : "Sin oportunidad vinculada"}${p.vence_en && !["aceptado", "rechazado"].includes(p.estado) ? " · vence " + esc(textoDia(p.vence_en)) : ""}</span></div>
         <div style="padding:8px 20px">
           ${p.items.map(i => `<div class="it"><div><div style="font-size:14px">${esc(i.descripcion)}</div>
-            <div class="q">${i.cantidad} × ${plata(i.precio_unit)} · ${esc(etiqueta(TIPOS_ITEM, i.tipo))}</div></div>
+            <div class="q">${i.cantidad} × ${plata(i.precio_unit)}</div></div>
             <span class="mono" style="font-weight:500">${plata(i.cantidad * i.precio_unit)}</span></div>`).join("")}
           <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 0 8px">
             <b>Total</b><span class="mono" style="font-size:24px;font-weight:600">${plata(p.total)}</span></div>
@@ -995,8 +982,7 @@
     const fila = i => `<div class="k-item-fila">
       <input type="text" class="it-d" maxlength="160" placeholder="Descripción" value="${esc(i.descripcion)}">
       <input type="number" class="it-c" min="1" value="${i.cantidad || 1}" aria-label="Cantidad">
-      <input type="number" class="it-p" min="0" placeholder="Precio" value="${i.precio_unit === "" ? "" : Number(i.precio_unit) || ""}" aria-label="Precio unitario">
-      <select class="it-t" style="grid-column:1 / span 3">${Object.entries(TIPOS_ITEM).map(([k, n]) => `<option value="${k}" ${i.tipo === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>`;
+      <input type="number" class="it-p" min="0" placeholder="Precio" value="${i.precio_unit === "" ? "" : Number(i.precio_unit) || ""}" aria-label="Precio unitario"></div>`;
     const sel = p ? null : selectorContacto("np", pre.contacto_id ? { id: pre.contacto_id, nombre: pre.nombre, fijo: true } : null, null, false);
     abrirModal(p ? "Editar " + p.numero : "Nuevo presupuesto", `
       ${p ? "" : `<div class="campo"><label>Contacto</label>${sel.html}</div>`}
@@ -1004,11 +990,11 @@
         <button type="button" class="k-btn chico" id="npMas">+ Agregar ítem</button></div>
       <div class="campo"><label>Total</label><div class="mono" id="npTotal" style="font-size:20px;font-weight:600">$ 0</div></div>
       <div class="campo"><label>Válido hasta</label><input type="date" id="npVence" value="${esc(p ? (p.vence_en || "") : "")}"></div>
-      <div class="campo"><label>Notas (opcional)</label><textarea id="npNotas" placeholder="Garantía, forma de pago, tiempos…">${esc(p ? p.notas || "" : "")}</textarea></div>`,
+      <div class="campo"><label>Notas (opcional)</label><textarea id="npNotas" placeholder="Forma de pago, tiempo de entrega, garantía…">${esc(p ? p.notas || "" : "")}</textarea></div>`,
       async () => {
         const its = [...document.querySelectorAll("#npItems .k-item-fila")].map(f => ({
           descripcion: f.querySelector(".it-d").value, cantidad: f.querySelector(".it-c").value,
-          precio_unit: f.querySelector(".it-p").value, tipo: f.querySelector(".it-t").value })).filter(i => i.descripcion.trim());
+          precio_unit: f.querySelector(".it-p").value, tipo: "producto" })).filter(i => i.descripcion.trim());
         if (!its.length) return avisar("avisoModal", "Agregá al menos un ítem", false);
         try {
           let r;
@@ -1040,7 +1026,7 @@
   function pdfPresupuesto(p) {
     const w = window.open("", "_blank");
     if (!w) return alert("El navegador bloqueó la ventana. Permití las ventanas emergentes para descargar el PDF.");
-    const filas = p.items.map(i => `<tr><td>${esc(i.descripcion)}<br><small>${esc(etiqueta(TIPOS_ITEM, i.tipo))}</small></td>
+    const filas = p.items.map(i => `<tr><td>${esc(i.descripcion)}</td>
       <td style="text-align:center">${i.cantidad}</td><td style="text-align:right">${plata(i.precio_unit)}</td>
       <td style="text-align:right">${plata(i.cantidad * i.precio_unit)}</td></tr>`).join("");
     w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(p.numero)} - JR Soluciones Informáticas</title>
@@ -1074,7 +1060,6 @@
 
     if ((el = q("[data-p-ir]"))) { e.preventDefault(); return irPestana(el.dataset.pIr); }
     if ((el = q("[data-rango]"))) { R.rango = el.dataset.rango; return irPestana("resumen"); }
-    if ((el = q("[data-tipo-op]"))) { R.tipoOp = el.dataset.tipoOp; return irPestana("pipeline"); }
     if ((el = q("[data-tipo-ct]"))) { R.filtroContacto = el.dataset.tipoCt; return irPestana("contactos"); }
     if ((el = q("[data-estado-pre]"))) { R.estadoPre = el.dataset.estadoPre; return irPestana("presupuestos"); }
     if ((el = q("[data-linea]"))) { R.filtroLinea = el.dataset.linea; return abrirFicha(R.fichaId); }
@@ -1091,7 +1076,6 @@
       if (a === "cerrar-ficha") return cerrarFicha();
       if (a === "nueva-act") return nuevaActividad();
       if (a === "nuevo-pre") return formPresupuesto(null);
-      if (a === "nueva-rep" && f) return nuevaOp({ contacto_id: f.id, nombre: f.nombre, tipo: "reparacion", fijo: true });
       if (a === "nueva-op-ficha" && f) return nuevaOp({ contacto_id: f.id, nombre: f.nombre, tipo: "venta", fijo: true });
       if (a === "presupuesto-de-op") {
         const oid = el.dataset.opId;
@@ -1108,16 +1092,6 @@
           try { await pedir("/panel/crm/contacto/" + encodeURIComponent(f.id), leerFormContacto()); cerrarModal(); abrirFicha(f.id); }
           catch (er) { avisar("avisoModal", er.message, false); }
         });
-      }
-      if (a === "nuevo-equipo" && f) {
-        return abrirModal("Agregar equipo", `
-          <div class="campo"><label>Equipo</label><input type="text" id="eqDes" maxlength="160" placeholder="Ej: Notebook HP 15-dw"></div>
-          <div class="campo"><label>Detalle (opcional)</label><input type="text" id="eqDet" maxlength="300" placeholder="Ej: i5, 8 GB, SSD 240"></div>`,
-          async () => {
-            if (!$("eqDes").value.trim()) return avisar("avisoModal", "Describí el equipo", false);
-            try { await pedir(`/panel/crm/contacto/${encodeURIComponent(f.id)}/equipos`, { descripcion: $("eqDes").value, detalle: $("eqDet").value }); cerrarModal(); abrirFicha(f.id); }
-            catch (er) { avisar("avisoModal", er.message, false); }
-          });
       }
       if (a === "guardar-nota" && f) {
         const txt = $("notaTxt").value.trim();
@@ -1152,11 +1126,6 @@
       }
     }
 
-    if ((el = q("[data-equipo-borrar]"))) {
-      if (!confirm("¿Quitar este equipo?")) return;
-      try { await pedir(`/panel/crm/equipo/${el.dataset.equipoBorrar}/borrar`, {}); abrirFicha(R.fichaId); } catch (er) { falla(er); }
-      return;
-    }
     if ((el = q("[data-hecha]"))) {
       const id = el.dataset.hecha, hecha = el.checked;
       try {

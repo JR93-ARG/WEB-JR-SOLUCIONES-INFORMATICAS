@@ -484,6 +484,9 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
       <div class="lista" id="listaClientes"><div class="cargando">Cargando…</div></div>
     </section>
 
+    <!-- Comportamiento en la tienda (lo arma tienda.js) -->
+    <section class="seccion" id="sec-tienda"></section>
+
     <!-- CRM comercial (lo arma crm.js) -->
     <section class="seccion" id="sec-crm"></section>
 
@@ -535,15 +538,16 @@ let seccion = "pedidos";
 
 const SECCIONES = [
   { id: "pedidos",   nombre: "Pedidos",        grupo: "Ventas",    bajo: true, ico: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>' },
+  { id: "tienda",    nombre: "Estadísticas",   grupo: "Ventas",    bajo: true, ico: '<path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/>' },
   { id: "crm",       nombre: "CRM",            grupo: "Ventas",    bajo: true, ico: '<rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/>' },
   { id: "clientes",  nombre: "Clientes",       grupo: "Ventas",    ico: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>' },
   { id: "productos", nombre: "Productos",      grupo: "Catálogo",  bajo: true, ico: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/>' },
   { id: "promos",    nombre: "Promociones",    grupo: "Catálogo",  ico: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>' },
   { id: "precios",   nombre: "Precios",        grupo: "Catálogo",  ico: '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
   { id: "placas",    nombre: "Placas",         grupo: "Catálogo",  ico: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>' },
-  { id: "mensajes",  nombre: "Mensajes",       grupo: "Tienda",    bajo: true, ico: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>' },
-  { id: "pagos",     nombre: "Pagos y envíos", grupo: "Tienda",    ico: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>' },
-  { id: "config",    nombre: "Configuración",  grupo: "Tienda",    ico: '<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2.2"/><circle cx="9" cy="12" r="2.2"/><circle cx="17" cy="18" r="2.2"/>' },
+  { id: "mensajes",  nombre: "Mensajes",       grupo: "Ajustes", ico: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>' },
+  { id: "pagos",     nombre: "Pagos y envíos", grupo: "Ajustes",    ico: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>' },
+  { id: "config",    nombre: "Configuración",  grupo: "Ajustes",    ico: '<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2.2"/><circle cx="9" cy="12" r="2.2"/><circle cx="17" cy="18" r="2.2"/>' },
   { id: "cuenta",    nombre: "Mi cuenta",      grupo: "Cuenta",    ico: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
 ];
 const ICO_MAS = '<circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>';
@@ -832,7 +836,7 @@ function irA(id) {
   const el = $("sec-" + id);
   if (el) el.classList.add("on");
   window.scrollTo(0, 0);
-  document.body.classList.toggle("en-crm", id === "crm");
+  document.body.classList.toggle("en-crm", id === "crm" || id === "tienda");
   if (id !== "crm" && window.CRM) window.CRM.cerrarFicha(true);
 
   const cargadores = {
@@ -846,6 +850,7 @@ function irA(id) {
     config:    cargarConfig,
     clientes:  cargarClientes,
     crm:       () => window.CRM && window.CRM.abrir(),
+    tienda:    () => window.TIENDA && window.TIENDA.abrir(),
     cuenta:    cargarAuditoria,
   };
   if (cargadores[id]) cargadores[id]();
@@ -2916,5 +2921,6 @@ conRetraso($("buscarPlaca"),   v => { buscaPlaca = v;   cargarPlacaProductos(); 
 })();
 </script>
 <script src="crm.js"></script>
+<script src="tienda.js"></script>
 </body>
 </html>
