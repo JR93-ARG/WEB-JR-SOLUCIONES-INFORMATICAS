@@ -170,7 +170,7 @@
 
   /* Pipeline */
   .k-scroll{overflow-x:auto;padding-bottom:10px;-webkit-overflow-scrolling:touch}
-  .k-kanban{display:grid;grid-template-columns:repeat(5,minmax(252px,1fr));gap:14px;align-items:start}
+  .k-kanban{display:grid;grid-template-columns:repeat(5,minmax(215px,1fr));gap:14px;align-items:start}
   .k-col{background:#e9f0ea;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:420px;transition:background .12s}
   .k-col.sobre{background:#d3ebd9;outline:2px dashed var(--k-verde2)}
   .k-col-cab{padding:2px 4px 8px;border-bottom:3px solid var(--lin,#94a3a0)}

@@ -85,14 +85,56 @@ header{background:var(--marca);color:#fff;position:sticky;top:0;z-index:50;
 .hdr-btn{background:rgba(255,255,255,.14);border:none;color:#fff;width:34px;height:34px;
   border-radius:9px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 
-/* ── Navegación por secciones ── */
-.nav{display:flex;gap:4px;padding:0 10px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.nav::-webkit-scrollbar{display:none}
-.nav-item{background:rgba(255,255,255,.12);border:none;color:rgba(255,255,255,.75);
-  padding:8px 15px;border-radius:999px;font-size:13px;cursor:pointer;
-  white-space:nowrap;flex-shrink:0;transition:all .15s}
-.nav-item:hover{background:rgba(255,255,255,.2)}
-.nav-item.on{background:var(--blanco);color:var(--marca);font-weight:700}
+/* ── Navegación: barra inferior en celular, menú lateral en pantallas grandes ── */
+:root{--alto-hdr:62px;--ancho-menu:236px}
+.hdr-sec{font-size:13px;font-weight:600;color:#fff;opacity:.95;margin-left:auto;margin-right:12px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.hdr-marca{min-width:0}
+.cuerpo{display:block}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;
+  stroke-linejoin:round;flex:none;display:block}
+#menuLateral{display:none}
+#menuInferior{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--blanco);
+  border-top:1px solid var(--linea);display:grid;grid-template-columns:repeat(5,1fr);
+  padding:4px 4px calc(4px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(30,27,48,.06)}
+.mi{background:none;border:none;color:var(--gris);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;min-height:52px;padding:6px 2px;border-radius:12px;cursor:pointer;
+  font-size:11px;font-weight:600;position:relative;-webkit-tap-highlight-color:transparent}
+.mi.on{color:var(--marca)}
+.mi.on::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:26px;height:3px;
+  border-radius:0 0 3px 3px;background:var(--marca-2)}
+.mi:active{background:var(--marca-claro)}
+#menuMasFondo{position:fixed;inset:0;background:rgba(30,27,48,.45);z-index:150}
+#menuMas{position:fixed;left:0;right:0;bottom:0;z-index:151;background:var(--blanco);
+  border-radius:20px 20px 0 0;padding:10px 14px calc(18px + env(safe-area-inset-bottom));
+  max-height:80vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(0,0,0,.18)}
+#menuMas .asa{width:38px;height:4px;border-radius:4px;background:var(--linea);margin:0 auto 12px}
+#menuMas h4{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--suave);margin:12px 4px 7px}
+.mas-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mas-it{background:var(--fondo);border:1px solid var(--linea);border-radius:14px;color:var(--tinta);
+  display:flex;flex-direction:column;align-items:center;gap:7px;padding:14px 6px;font-size:12px;font-weight:600;cursor:pointer}
+.mas-it .ico{color:var(--marca)}
+.mas-it.on{background:var(--marca-claro);border-color:var(--marca-borde);color:var(--marca)}
+body.mas-abierto{overflow:hidden}
+main{padding-bottom:96px}
+@media(min-width:900px){
+  .cuerpo{display:flex;align-items:flex-start}
+  #menuInferior,#menuMas,#menuMasFondo{display:none !important}
+  #menuLateral{display:flex;flex-direction:column;gap:2px;width:var(--ancho-menu);flex:none;
+    position:sticky;top:var(--alto-hdr);height:calc(100vh - var(--alto-hdr));overflow-y:auto;
+    padding:16px 12px 24px;background:var(--blanco);border-right:1px solid var(--linea)}
+  #menuLateral h4{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--suave);
+    margin:16px 10px 6px}
+  #menuLateral h4:first-child{margin-top:2px}
+  .ml{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;text-align:left;
+    padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;color:var(--texto);cursor:pointer}
+  .ml:hover{background:var(--fondo)}
+  .ml.on{background:var(--marca-claro);color:var(--marca)}
+  .ml.on .ico{color:var(--marca-2)}
+  .ml .ico{width:20px;height:20px;color:var(--gris)}
+  main{flex:1;min-width:0;max-width:1100px;padding:22px 28px 48px}
+}
+@media(min-width:900px) and (max-width:1100px){:root{--ancho-menu:200px}}
 
 /* ── Contenido ── */
 main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
@@ -257,15 +299,17 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
 <div id="app" class="oculto">
   <header>
     <div class="hdr-top">
-      <div>
+      <div class="hdr-marca">
         <div class="hdr-t">JR Shop</div>
         <div class="hdr-s" id="hdrUsuario"></div>
       </div>
-      <button class="hdr-btn" id="btnSalir" title="Cerrar sesión">&#9099;</button>
+      <div class="hdr-sec" id="hdrSeccion"></div>
+      <button class="hdr-btn" id="btnSalir" title="Cerrar sesión" aria-label="Cerrar sesión">&#9099;</button>
     </div>
-    <nav class="nav" id="nav"></nav>
   </header>
 
+  <div class="cuerpo">
+  <nav id="menuLateral" aria-label="Secciones"></nav>
   <main>
     <!-- Pedidos -->
     <section class="seccion on" id="sec-pedidos">
@@ -471,6 +515,11 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
       </div>
     </section>
   </main>
+  </div>
+
+  <nav id="menuInferior" aria-label="Secciones"></nav>
+  <div id="menuMasFondo" class="oculto"></div>
+  <div id="menuMas" class="oculto" role="dialog" aria-label="Más secciones"></div>
 </div>
 
 <div id="detalle" class="oculto"></div>
@@ -485,18 +534,20 @@ let usuario = null;
 let seccion = "pedidos";
 
 const SECCIONES = [
-  { id: "pedidos",   nombre: "Pedidos" },
-  { id: "productos", nombre: "Productos" },
-  { id: "promos",    nombre: "Promociones" },
-  { id: "mensajes",  nombre: "Mensajes" },
-  { id: "pagos",     nombre: "Pagos y envíos" },
-  { id: "precios",   nombre: "Precios" },
-  { id: "placas",    nombre: "Placas" },
-  { id: "config",    nombre: "Configuración" },
-  { id: "clientes",  nombre: "Clientes" },
-  { id: "crm",       nombre: "CRM" },
-  { id: "cuenta",    nombre: "Mi cuenta" },
+  { id: "pedidos",   nombre: "Pedidos",        grupo: "Ventas",    bajo: true, ico: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>' },
+  { id: "crm",       nombre: "CRM",            grupo: "Ventas",    bajo: true, ico: '<rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/>' },
+  { id: "clientes",  nombre: "Clientes",       grupo: "Ventas",    ico: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>' },
+  { id: "productos", nombre: "Productos",      grupo: "Catálogo",  bajo: true, ico: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/>' },
+  { id: "promos",    nombre: "Promociones",    grupo: "Catálogo",  ico: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>' },
+  { id: "precios",   nombre: "Precios",        grupo: "Catálogo",  ico: '<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
+  { id: "placas",    nombre: "Placas",         grupo: "Catálogo",  ico: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>' },
+  { id: "mensajes",  nombre: "Mensajes",       grupo: "Tienda",    bajo: true, ico: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>' },
+  { id: "pagos",     nombre: "Pagos y envíos", grupo: "Tienda",    ico: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>' },
+  { id: "config",    nombre: "Configuración",  grupo: "Tienda",    ico: '<path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2.2"/><circle cx="9" cy="12" r="2.2"/><circle cx="17" cy="18" r="2.2"/>' },
+  { id: "cuenta",    nombre: "Mi cuenta",      grupo: "Cuenta",    ico: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
 ];
+const ICO_MAS = '<circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>';
+const svgIco = d => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 
 const CLASE_BADGE = {
   "Pendiente verificacion":"b-pend", "Pago verificado":"b-verif",
@@ -733,14 +784,50 @@ function mostrarApp() {
 
 // ── Navegación ──────────────────────────────────────────────────
 function pintarNav() {
-  $("nav").innerHTML = SECCIONES
-    .map(s => `<button class="nav-item${s.id === seccion ? " on" : ""}" data-s="${s.id}">${esc(s.nombre)}</button>`)
-    .join("");
+  const actual = SECCIONES.find(x => x.id === seccion);
+  const hs = $("hdrSeccion"); if (hs && actual) hs.textContent = actual.nombre;
+
+  // Menú lateral (pantallas grandes), agrupado
+  let grupo = "", lat = "";
+  for (const x of SECCIONES) {
+    if (x.grupo !== grupo) { grupo = x.grupo; lat += `<h4>${esc(grupo)}</h4>`; }
+    lat += `<button class="ml${x.id === seccion ? " on" : ""}" data-s="${x.id}"${x.id === seccion ? ' aria-current="page"' : ""}>${svgIco(x.ico)}<span>${esc(x.nombre)}</span></button>`;
+  }
+  $("menuLateral").innerHTML = lat;
+
+  // Barra inferior (celular): los 4 principales + "Más"
+  const enMas = !!actual && !actual.bajo;
+  $("menuInferior").innerHTML = SECCIONES.filter(x => x.bajo).map(x =>
+    `<button class="mi${x.id === seccion ? " on" : ""}" data-s="${x.id}"${x.id === seccion ? ' aria-current="page"' : ""}>${svgIco(x.ico)}<span>${esc(x.nombre)}</span></button>`).join("") +
+    `<button class="mi${enMas ? " on" : ""}" data-mas="1" aria-haspopup="dialog">${svgIco(ICO_MAS)}<span>${enMas ? esc(actual.nombre) : "Más"}</span></button>`;
+
+  // Hoja "Más"
+  let g2 = "", mas = '<div class="asa"></div>';
+  for (const x of SECCIONES.filter(x => !x.bajo)) {
+    if (x.grupo !== g2) { if (g2) mas += "</div>"; g2 = x.grupo; mas += `<h4>${esc(g2)}</h4><div class="mas-grid">`; }
+    mas += `<button class="mas-it${x.id === seccion ? " on" : ""}" data-s="${x.id}">${svgIco(x.ico)}<span>${esc(x.nombre)}</span></button>`;
+  }
+  $("menuMas").innerHTML = mas + "</div>";
 }
+
+function menuMas(abrir) {
+  $("menuMas").classList.toggle("oculto", !abrir);
+  $("menuMasFondo").classList.toggle("oculto", !abrir);
+  document.body.classList.toggle("mas-abierto", abrir);
+}
+
+// El alto real de la cabecera lo usa el menú lateral para pegarse debajo
+function medirCabecera() {
+  const h = document.querySelector("header");
+  if (h && h.offsetHeight) document.documentElement.style.setProperty("--alto-hdr", h.offsetHeight + "px");
+}
+window.addEventListener("resize", medirCabecera);
 
 function irA(id) {
   seccion = id;
+  menuMas(false);
   pintarNav();
+  medirCabecera();
   document.querySelectorAll(".seccion").forEach(s => s.classList.remove("on"));
   const el = $("sec-" + id);
   if (el) el.classList.add("on");
@@ -2741,10 +2828,13 @@ $("gridPlaca").addEventListener("click", e => {
   actualizarContador();
 });
 
-$("nav").addEventListener("click", e => {
-  const b = e.target.closest(".nav-item");
+["menuLateral", "menuInferior", "menuMas"].forEach(id => $(id).addEventListener("click", e => {
+  if (e.target.closest("[data-mas]")) return menuMas($("menuMas").classList.contains("oculto"));
+  const b = e.target.closest("[data-s]");
   if (b) irA(b.dataset.s);
-});
+}));
+$("menuMasFondo").addEventListener("click", () => menuMas(false));
+document.addEventListener("keydown", e => { if (e.key === "Escape") menuMas(false); });
 
 $("filtros").addEventListener("click", e => {
   const c = e.target.closest(".chip");
