@@ -1,5 +1,5 @@
-// JR Shop — generado 2026-10-25 18:43
-window.JR_VERSION = "2026-10-25 18:43";
+// JR Shop — generado 2026-10-25 19:03
+window.JR_VERSION = "2026-10-25 19:03";
 
 
 const CART_PHONE = "543812235528";
@@ -2752,6 +2752,7 @@ setTimeout(agregarBadgesSociales, 2000);
     });
   });
 })();
+
 
 // ── Movimiento de la tienda ───────────────────────────────────────────────────
 // Capa de animaciones que se suma a lo que ya hay: entradas al scroll, tarjetas con
