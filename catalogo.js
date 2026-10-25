@@ -2752,3 +2752,243 @@ setTimeout(agregarBadgesSociales, 2000);
     });
   });
 })();
+
+// ── Movimiento de la tienda ───────────────────────────────────────────────────
+// Capa de animaciones que se suma a lo que ya hay: entradas al scroll, tarjetas con
+// profundidad, producto que vuela al carrito, pasos del pedido con transición y
+// confeti al confirmar. Si la persona pidió "reducir movimiento" no se activa.
+(function () {
+  try { if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return; } catch (e) { return; }
+  var raf = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
+  var fino = false;
+  try { fino = window.matchMedia("(hover: hover) and (pointer: fine)").matches; } catch (e) {}
+
+  // 1) Aparición escalonada de tarjetas al llegar a la pantalla
+  var io = null;
+  if ("IntersectionObserver" in window) {
+    var lote = 0, loteT = null;
+    io = new IntersectionObserver(function (ents) {
+      ents.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        var el = en.target;
+        io.unobserve(el);
+        el.style.setProperty("--fx-d", Math.min(lote, 10) * 55 + "ms");
+        lote++;
+        clearTimeout(loteT);
+        loteT = setTimeout(function () { lote = 0; }, 120);
+        raf(function () { el.classList.add("fx-in"); });
+        setTimeout(function () { el.classList.remove("fx-pre", "fx-in"); el.style.removeProperty("--fx-d"); }, 1500);
+      });
+    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.05 });
+  }
+  function preparar(raiz) {
+    if (!io) return;
+    var lista = (raiz || document).querySelectorAll(".card:not(.fx-vista), .cat-card:not(.fx-vista)");
+    var alto = window.innerHeight || 800, marcar = [];
+    for (var i = 0; i < lista.length; i++) {
+      var r = lista[i].getBoundingClientRect();
+      lista[i].classList.add("fx-vista");
+      if (r.width && r.top > alto * 0.92) marcar.push(lista[i]);
+    }
+    marcar.forEach(function (el) { el.classList.add("fx-pre"); io.observe(el); });
+  }
+  preparar();
+  if (window.MutationObserver) {
+    var pend = false;
+    new MutationObserver(function () {
+      if (pend) return;
+      pend = true;
+      setTimeout(function () { pend = false; preparar(); }, 80);
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+
+  // 2) Inclinación 3D de tarjetas y de la portada (solo con mouse)
+  if (fino) {
+    var tarjeta = null, px = 0, py = 0, pend2 = false;
+    document.addEventListener("pointermove", function (e) {
+      var c = e.target.closest ? e.target.closest(".card") : null;
+      if (tarjeta && tarjeta !== c) tarjeta.classList.remove("fx-tilt");
+      tarjeta = c;
+      px = e.clientX; py = e.clientY;
+      var h = e.target.closest ? e.target.closest(".hero-slider") : null;
+      if (h && !pend2) {
+        pend2 = true;
+        raf(function () {
+          pend2 = false;
+          var r = h.getBoundingClientRect();
+          h.style.setProperty("--fx-hy", (((px - r.left) / r.width) - 0.5) * 9 + "deg");
+          h.style.setProperty("--fx-hx", (0.5 - ((py - r.top) / r.height)) * 7 + "deg");
+        });
+      }
+      if (!c || c.classList.contains("fx-pre")) return;
+      if (!pend2) {
+        pend2 = true;
+        raf(function () {
+          pend2 = false;
+          if (!tarjeta) return;
+          var r = tarjeta.getBoundingClientRect();
+          var x = (px - r.left) / r.width, y = (py - r.top) / r.height;
+          tarjeta.style.setProperty("--fx-ry", ((x - 0.5) * 7).toFixed(2) + "deg");
+          tarjeta.style.setProperty("--fx-rx", ((0.5 - y) * 6).toFixed(2) + "deg");
+          tarjeta.style.setProperty("--fx-mx", (x * 100).toFixed(1) + "%");
+          tarjeta.style.setProperty("--fx-my", (y * 100).toFixed(1) + "%");
+          tarjeta.classList.add("fx-tilt");
+        });
+      }
+    }, { passive: true });
+    document.addEventListener("pointerleave", function () {
+      if (tarjeta) tarjeta.classList.remove("fx-tilt");
+    }, true);
+    var hs = document.getElementById("heroSlider");
+    if (hs) hs.addEventListener("pointerleave", function () {
+      hs.style.setProperty("--fx-hy", "0deg"); hs.style.setProperty("--fx-hx", "0deg");
+    });
+  }
+
+  // 3) Producto que vuela al carrito
+  var origen = null;
+  document.addEventListener("click", function (e) {
+    try {
+      var t = e.target;
+      var b = t.closest && t.closest("[onclick*='addToCartFromBtn'],[onclick*='agregarDesdeIndice'],[onclick*='comprarAhora'],#prodBtnAgregar,#prodBtnComprar,.btn-agregar,.btn-add");
+      if (!b) return;
+      var img = null;
+      var cd = b.closest(".card");
+      if (cd) img = cd.querySelector(".card-img img");
+      if (!img) img = document.querySelector("#prodImgWrap img");
+      origen = { img: img, caja: img ? img.getBoundingClientRect() : b.getBoundingClientRect(), t: Date.now() };
+    } catch (er) {}
+  }, true);
+  function pop(el) {
+    if (!el) return;
+    el.classList.remove("fx-pop");
+    void el.offsetWidth;
+    el.classList.add("fx-pop");
+    setTimeout(function () { el.classList.remove("fx-pop"); }, 700);
+  }
+  function volar() {
+    var meta = document.getElementById("cartFab");
+    var o = origen;
+    origen = null;
+    if (!meta) return;
+    var m = meta.getBoundingClientRect();
+    if (!o || Date.now() - o.t > 1500) { pop(meta); return; }
+    var c = o.caja, lado = Math.max(46, Math.min(c.width, c.height, 120));
+    var d = document.createElement("div");
+    d.className = "fx-vuela";
+    if (o.img && o.img.currentSrc) d.style.backgroundImage = "url('" + o.img.currentSrc + "')";
+    d.style.width = lado + "px"; d.style.height = lado + "px";
+    d.style.left = (c.left + c.width / 2 - lado / 2) + "px";
+    d.style.top = (c.top + c.height / 2 - lado / 2) + "px";
+    document.body.appendChild(d);
+    var dx = (m.left + m.width / 2) - (c.left + c.width / 2);
+    var dy = (m.top + m.height / 2) - (c.top + c.height / 2);
+    if (d.animate) {
+      var a = d.animate([
+        { transform: "translate(0,0) scale(1) rotate(0deg)", opacity: 1 },
+        { transform: "translate(" + dx * 0.45 + "px," + (dy * 0.45 - 90) + "px) scale(.7) rotate(-8deg)", opacity: 1, offset: 0.5 },
+        { transform: "translate(" + dx + "px," + dy + "px) scale(.12) rotate(14deg)", opacity: 0.35 }
+      ], { duration: 720, easing: "cubic-bezier(.5,0,.75,.4)" });
+      a.onfinish = function () { d.remove(); pop(meta); pop(document.getElementById("cartCount")); pop(document.getElementById("cartCountHdr")); };
+    } else { d.remove(); pop(meta); }
+  }
+  if (typeof window.saveCart === "function") {
+    var guardar = window.saveCart, cant = -1;
+    window.saveCart = function () {
+      var r = guardar.apply(this, arguments);
+      try {
+        var n = 0;
+        cart.forEach(function (i) { n += Number(i.qty) || 0; });
+        if (cant >= 0 && n > cant) volar();
+        cant = n;
+      } catch (e) {}
+      return r;
+    };
+    try { var n0 = 0; cart.forEach(function (i) { n0 += Number(i.qty) || 0; }); cant = n0; } catch (e) {}
+  }
+
+  // 4) Números que suben hasta su valor
+  function contar(el) {
+    if (!el) return;
+    var txt = el.textContent, ini = -1, fin = -1;
+    for (var i = 0; i < txt.length; i++) {
+      var ch = txt.charAt(i), dig = ch >= "0" && ch <= "9";
+      if (ini < 0 && dig) ini = i;
+      if (ini >= 0 && (dig || ch === ".")) fin = i + 1; else if (ini >= 0) break;
+    }
+    if (ini < 0) return;
+    var meta = parseInt(txt.slice(ini, fin).split(".").join(""), 10);
+    if (!meta || meta < 10) return;
+    var pre = txt.slice(0, ini), pos = txt.slice(fin), t0 = null, dur = 650;
+    function paso(t) {
+      if (t0 === null) t0 = t;
+      var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      if (p < 1) {
+        el.textContent = pre + Math.round(meta * e).toLocaleString("es-AR") + pos;
+        raf(paso);
+      } else el.textContent = txt;
+    }
+    raf(paso);
+  }
+  var panel = document.getElementById("cartPanel");
+  if (panel && window.MutationObserver) {
+    var estaba = false;
+    new MutationObserver(function () {
+      var abre = panel.classList.contains("open");
+      if (abre && !estaba) setTimeout(function () { contar(document.getElementById("cartTotal")); }, 120);
+      estaba = abre;
+    }).observe(panel, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  // 5) Pedido: barra de progreso, sentido de la transición y confirmación
+  var ultimoPaso = 0;
+  function confeti() {
+    var cont = document.createElement("div");
+    cont.className = "fx-conf";
+    var col = ["#22c55e", "#16a34a", "#86efac", "#facc15", "#fb923c", "#38bdf8", "#f472b6"];
+    var ancho = window.innerWidth || 400;
+    for (var i = 0; i < 46; i++) {
+      var p = document.createElement("i");
+      p.style.left = (ancho / 2 + (Math.random() - 0.5) * ancho * 0.5) + "px";
+      p.style.background = col[i % col.length];
+      p.style.setProperty("--x", ((Math.random() - 0.5) * ancho * 0.9) + "px");
+      p.style.setProperty("--r", (Math.random() * 900 - 450) + "deg");
+      p.style.setProperty("--d", (Math.random() * 0.35) + "s");
+      p.style.setProperty("--t", (1.9 + Math.random() * 1.2) + "s");
+      p.style.top = (Math.random() * 18 + 8) + "vh";
+      cont.appendChild(p);
+    }
+    document.body.appendChild(cont);
+    setTimeout(function () { cont.remove(); }, 3600);
+  }
+  function tilde() {
+    var ic = document.querySelector("#step5 .confirm-icon");
+    if (!ic || ic.classList.contains("fx-ok")) return;
+    ic.classList.add("fx-ok");
+    ic.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle class="fx-b" cx="50" cy="50" r="40"/><circle class="fx-c" cx="50" cy="50" r="28"/><path class="fx-t" d="M36 51 L46 61 L65 40"/></svg>';
+  }
+  if (typeof window.irAStep === "function") {
+    var pasoO = window.irAStep;
+    window.irAStep = function (n) {
+      var r = pasoO.apply(this, arguments);
+      try {
+        var m = document.querySelector("#checkoutModal .modal");
+        if (m) m.classList.toggle("fx-atras", n < ultimoPaso);
+        var pasos = document.querySelector("#checkoutModal .steps");
+        if (pasos) pasos.style.setProperty("--fx-p", (Math.min(n, 4) / 4 * 100) + "%");
+        if (n === 1) setTimeout(function () { contar(document.getElementById("orderTotalAmt")); }, 200);
+        if (n === 4) setTimeout(function () { contar(document.getElementById("pagoMonto")); }, 250);
+        if (n === 5) { tilde(); confeti(); }
+        ultimoPaso = n;
+      } catch (e) {}
+      return r;
+    };
+  }
+  if (typeof window.cerrarCheckout === "function") {
+    var cerrarO = window.cerrarCheckout;
+    window.cerrarCheckout = function () {
+      ultimoPaso = 0;
+      return cerrarO.apply(this, arguments);
+    };
+  }
+})();

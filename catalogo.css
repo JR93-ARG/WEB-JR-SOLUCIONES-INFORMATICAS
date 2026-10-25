@@ -1256,3 +1256,110 @@ body.filtrando .benef-bar{display:none}
   .modal-overlay,.prod-overlay,#btnTop{display:none !important}
   body{background:#fff}
 }
+
+/* ══ MOVIMIENTO ══ Capa de animaciones. Solo se activa si la persona no pidió
+   "reducir movimiento" en su aparato. Si falla, la tienda se ve igual que antes. */
+@media (prefers-reduced-motion:no-preference){
+
+/* Entrada de productos al hacer scroll */
+.card.fx-pre{opacity:0;transform:translateY(26px) scale(.96) rotateX(8deg);transform-origin:50% 100%}
+.card.fx-pre.fx-in{opacity:1;transform:none;transition:opacity .55s ease,transform .6s cubic-bezier(.2,.9,.25,1.05);transition-delay:var(--fx-d,0ms)}
+.cat-card.fx-pre{opacity:0;transform:translateY(18px) scale(.94)}
+.cat-card.fx-pre.fx-in{opacity:1;transform:none;transition:opacity .45s ease,transform .5s cubic-bezier(.2,.9,.25,1.1);transition-delay:var(--fx-d,0ms)}
+
+/* Tarjetas con profundidad: se inclinan hacia el puntero y brilla la luz */
+.grid,.novedades-slider{perspective:1100px}
+.card{transform-style:preserve-3d}
+.card.fx-tilt{transition:transform .12s ease-out,box-shadow .2s,border-color .2s;
+  transform:perspective(900px) rotateX(var(--fx-rx,0deg)) rotateY(var(--fx-ry,0deg)) translateY(-5px) scale(1.015);
+  box-shadow:0 18px 38px rgba(21,128,61,.18),0 4px 10px rgba(0,0,0,.06);z-index:2}
+.card.fx-tilt::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:radial-gradient(circle at var(--fx-mx,50%) var(--fx-my,0%),rgba(255,255,255,.55),rgba(255,255,255,0) 55%);mix-blend-mode:soft-light}
+.card.fx-tilt .card-img img{transform:scale(1.07) translateZ(30px)}
+
+/* Portada */
+.hero-slider{transition:transform .2s ease-out;transform:perspective(1000px) rotateY(var(--fx-hy,0deg)) rotateX(var(--fx-hx,0deg))}
+.hero-badge,.hero-t,.hero-s,.hero-btns,.hero-trust{animation:fxUp .7s cubic-bezier(.2,.8,.2,1) both}
+.hero-t{animation-delay:.08s}.hero-s{animation-delay:.16s}.hero-btns{animation-delay:.24s}.hero-trust{animation-delay:.34s}
+@keyframes fxUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+
+/* Botones principales: brillo que cruza de vez en cuando y efecto al apretar */
+#prodBtnComprar,#btnCheckout,#step1 .btn-next,#btnPaso2a3,#btnPaso3a4,#btnEnviar{position:relative;overflow:hidden;transition:transform .15s,box-shadow .2s,background .2s}
+#prodBtnComprar::after,#btnCheckout::after,#step1 .btn-next::after,#btnPaso2a3::after,#btnPaso3a4::after,#btnEnviar::after{
+  content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-20deg);animation:fxSheen 4.5s ease-in-out infinite}
+@keyframes fxSheen{0%,70%{left:-60%}100%{left:130%}}
+#prodBtnComprar:active,#prodBtnAgregar:active,#btnCheckout:active,#step1 .btn-next:active,#btnPaso2a3:active,#btnPaso3a4:active,#btnEnviar:active{transform:scale(.97)}
+
+/* Producto: se abre con profundidad y el contenido entra escalonado */
+.prod-overlay.open{perspective:1400px}
+.prod-modal{animation:fxProd .55s cubic-bezier(.2,.85,.25,1.02);transform-origin:50% 100%}
+@keyframes fxProd{from{opacity:0;transform:translateY(46px) rotateX(10deg) scale(.95)}to{opacity:1;transform:none}}
+.prod-overlay.open #prodImgWrap img{animation:fxImg .8s cubic-bezier(.2,.8,.2,1) both .05s}
+@keyframes fxImg{from{opacity:0;transform:scale(.82) rotateY(-14deg)}to{opacity:1;transform:none}}
+.prod-overlay.open #prodBadges,.prod-overlay.open #prodNombre,.prod-overlay.open #prodMeta,
+.prod-overlay.open #prodPrecioMP,.prod-overlay.open #prodPrecioTransf,.prod-overlay.open #prodAhorro,
+.prod-overlay.open #prodBtnComprar,.prod-overlay.open #prodBtnAgregar{animation:fxUp .55s cubic-bezier(.2,.8,.2,1) both}
+.prod-overlay.open #prodNombre{animation-delay:.08s}.prod-overlay.open #prodMeta{animation-delay:.14s}
+.prod-overlay.open #prodPrecioMP{animation-delay:.18s}.prod-overlay.open #prodPrecioTransf{animation-delay:.22s}
+.prod-overlay.open #prodAhorro{animation-delay:.28s}.prod-overlay.open #prodBtnComprar{animation-delay:.34s}.prod-overlay.open #prodBtnAgregar{animation-delay:.4s}
+#prodAhorro,#ahorroTransferencia{position:relative;overflow:hidden}
+#prodAhorro::after,#ahorroTransferencia::after{content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.7),transparent);transform:skewX(-20deg);animation:fxSheen 3.6s ease-in-out infinite .8s}
+
+/* Carrito: producto que vuela, globito que rebota y lista que entra */
+.fx-vuela{position:fixed;z-index:9999;pointer-events:none;border-radius:14px;background:#fff center/contain no-repeat;
+  box-shadow:0 14px 34px rgba(21,128,61,.35);border:2px solid #22c55e;will-change:transform,opacity}
+#cartFab.fx-pop{animation:fxPop .6s cubic-bezier(.3,1.6,.5,1)}
+#cartCount.fx-pop,#cartCountHdr.fx-pop{animation:fxBump .55s cubic-bezier(.3,1.8,.5,1)}
+@keyframes fxPop{0%{transform:scale(1)}35%{transform:scale(1.14) rotate(-4deg)}70%{transform:scale(.97) rotate(2deg)}100%{transform:scale(1)}}
+@keyframes fxBump{0%{transform:scale(1)}40%{transform:scale(1.7)}100%{transform:scale(1)}}
+#cartPanel.open{animation:fxPanel .38s cubic-bezier(.2,.9,.25,1.05);transform-origin:100% 100%}
+@keyframes fxPanel{from{opacity:0;transform:translateY(22px) scale(.92) rotateX(8deg)}to{opacity:1;transform:none}}
+#cartPanel.open #cartItems>*{animation:fxSlide .45s cubic-bezier(.2,.8,.2,1) both}
+#cartPanel.open #cartItems>*:nth-child(2){animation-delay:.05s}#cartPanel.open #cartItems>*:nth-child(3){animation-delay:.1s}
+#cartPanel.open #cartItems>*:nth-child(4){animation-delay:.15s}#cartPanel.open #cartItems>*:nth-child(5){animation-delay:.2s}
+#cartPanel.open #cartItems>*:nth-child(n+6){animation-delay:.25s}
+@keyframes fxSlide{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+
+/* Pedido: el modal sube con profundidad y la barra de pasos avanza sola */
+.modal-overlay.open{perspective:1400px}
+.modal-overlay.open .modal{animation:fxProd .5s cubic-bezier(.2,.85,.25,1.02);transform-origin:50% 100%}
+.steps{position:sticky}
+.steps::after{content:"";position:absolute;left:0;bottom:-1px;height:3px;width:var(--fx-p,0%);
+  background:linear-gradient(90deg,#22c55e,var(--marca-2));border-radius:3px;transition:width .6s cubic-bezier(.3,.9,.3,1);z-index:2}
+.step.active{border-color:transparent}
+.step.active .step-n{animation:fxBump .5s cubic-bezier(.3,1.8,.5,1);box-shadow:0 0 0 5px rgba(34,197,94,.2)}
+.step.done .step-n{animation:fxBump .5s cubic-bezier(.3,1.8,.5,1)}
+.checkout-section.visible{animation:fxNext .45s cubic-bezier(.2,.85,.25,1) both}
+.modal.fx-atras .checkout-section.visible{animation-name:fxPrev}
+@keyframes fxNext{from{opacity:0;transform:translateX(40px) rotateY(-6deg)}to{opacity:1;transform:none}}
+@keyframes fxPrev{from{opacity:0;transform:translateX(-40px) rotateY(6deg)}to{opacity:1;transform:none}}
+.checkout-section.visible>*{animation:fxUp .5s cubic-bezier(.2,.8,.2,1) both}
+.checkout-section.visible>*:nth-child(2){animation-delay:.06s}.checkout-section.visible>*:nth-child(3){animation-delay:.12s}
+.checkout-section.visible>*:nth-child(4){animation-delay:.18s}.checkout-section.visible>*:nth-child(n+5){animation-delay:.24s}
+.order-line{animation:fxSlide .45s cubic-bezier(.2,.8,.2,1) both}
+.toggle-btn.selected{animation:fxPop .5s cubic-bezier(.3,1.6,.5,1)}
+#step3Envio:not([style*="none"]),#step3Retiro:not([style*="none"]){animation:fxUp .5s cubic-bezier(.2,.8,.2,1) both}
+.pago-opcion{transform-style:preserve-3d}
+.pago-opcion:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(21,128,61,.12)}
+.pago-opcion.selected{animation:fxSelect .55s cubic-bezier(.3,1.5,.5,1)}
+.pago-opcion.selected::after{animation:fxCheck .5s cubic-bezier(.3,2,.5,1) .1s both}
+@keyframes fxSelect{0%{transform:perspective(700px) rotateX(10deg) scale(.97)}60%{transform:perspective(700px) rotateX(-3deg) scale(1.02)}100%{transform:none}}
+@keyframes fxCheck{from{transform:scale(0) rotate(-90deg)}to{transform:none}}
+.checkout-section.visible .form-group input:focus,.checkout-section.visible input:focus{box-shadow:0 0 0 4px rgba(34,197,94,.18);transition:box-shadow .2s}
+
+/* Pedido confirmado */
+.confirm-icon.fx-ok{display:flex;justify-content:center;font-size:0;animation:none}
+.fx-ok svg{width:92px;height:92px;overflow:visible}
+.fx-ok .fx-c{fill:none;stroke:#22c55e;stroke-width:5;stroke-dasharray:176;stroke-dashoffset:176;animation:fxDraw .7s ease-out .1s forwards}
+.fx-ok .fx-t{fill:none;stroke:#16a34a;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:50;stroke-dashoffset:50;animation:fxDraw .45s ease-out .7s forwards}
+.fx-ok .fx-b{fill:#dcfce7;transform-origin:center;transform:scale(0);animation:fxPopIn .5s cubic-bezier(.3,1.6,.5,1) .05s forwards}
+@keyframes fxDraw{to{stroke-dashoffset:0}}
+@keyframes fxPopIn{to{transform:scale(1)}}
+.confirm-title{animation:fxUp .6s cubic-bezier(.2,.8,.2,1) both .9s}
+.fx-conf{position:fixed;left:0;top:0;width:100%;height:0;z-index:9998;pointer-events:none;overflow:visible}
+.fx-conf i{position:absolute;top:-10px;width:9px;height:14px;border-radius:2px;opacity:0;animation:fxConf var(--t,2.4s) cubic-bezier(.2,.6,.3,1) forwards;animation-delay:var(--d,0s)}
+@keyframes fxConf{0%{opacity:1;transform:translate3d(0,0,0) rotate(0)}100%{opacity:0;transform:translate3d(var(--x,0),105vh,0) rotate(var(--r,540deg))}}
+
+}
