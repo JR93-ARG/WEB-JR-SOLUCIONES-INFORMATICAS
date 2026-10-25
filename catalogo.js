@@ -2550,3 +2550,205 @@ function agregarBadgesSociales() {
 setTimeout(agregarBadgesSociales, 2000);
 
   
+
+// ── Seguimiento de la tienda ──────────────────────────────────────────────────
+// Le cuenta al panel qué hace cada visita: productos vistos, carrito, pasos del
+// pedido, medio de pago, búsquedas. No guarda nombre, teléfono, mail ni IP: la
+// visita es un código al azar que vive solo en esta pestaña.
+// Para no medir tus propias visitas: abrí la tienda con #nomedir al final de la
+// dirección (queda guardado en ese navegador). Con #medir se vuelve a activar.
+(function () {
+  try {
+    if (location.hash === "#nomedir") localStorage.setItem("jrNoMedir", "1");
+    if (location.hash === "#medir") localStorage.removeItem("jrNoMedir");
+    if (localStorage.getItem("jrNoMedir") === "1" || navigator.doNotTrack === "1") return;
+  } catch (e) {}
+
+  var sid = null, esNueva = false;
+  try { sid = sessionStorage.getItem("jrSid"); } catch (e) {}
+  if (!sid) {
+    sid = "";
+    try {
+      var bytes = new Uint8Array(12);
+      (window.crypto || window.msCrypto).getRandomValues(bytes);
+      for (var i = 0; i < bytes.length; i++) sid += (bytes[i] + 256).toString(16).slice(1);
+    } catch (e) {
+      for (var j = 0; j < 24; j++) sid += Math.floor(Math.random() * 16).toString(16);
+    }
+    try { sessionStorage.setItem("jrSid", sid); } catch (e) {}
+    esNueva = true;
+  }
+
+  // Cola de eventos: se mandan juntos cada tanto y al cerrar la pestaña.
+  var cola = [], timer = null;
+  function enviar() {
+    timer = null;
+    if (!cola.length) return;
+    var lote = cola.splice(0, 20);
+    try {
+      fetch(API_MV + "/evento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sid: sid, eventos: lote }),
+        keepalive: true
+      }).catch(function () {});
+    } catch (e) {}
+    if (cola.length) timer = setTimeout(enviar, 300);
+  }
+  function medir(tipo, extra) {
+    try {
+      var ev = { tipo: tipo };
+      if (extra) for (var k in extra) ev[k] = extra[k];
+      cola.push(ev);
+      if (!timer) timer = setTimeout(enviar, 1500);
+    } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") enviar();
+  });
+  window.addEventListener("pagehide", enviar);
+
+  function totalCarrito() {
+    try { return cart.reduce(function (s, i) { return s + (Number(i.price) || 0) * (Number(i.qty) || 0); }, 0); }
+    catch (e) { return 0; }
+  }
+
+  // 1) Cómo llegó y desde qué aparato
+  if (esNueva) {
+    var ref = "";
+    try {
+      ref = (new URLSearchParams(location.search).get("utm_source") || sessionStorage.getItem("jrRef") || document.referrer || "").toLowerCase();
+    } catch (e) {}
+    var origen = "otro";
+    if (!ref || ref.indexOf(location.hostname) > -1) origen = "directo";
+    else if (ref.indexOf("instagram") > -1) origen = "instagram";
+    else if (ref.indexOf("facebook") > -1 || ref.indexOf("fb.") > -1) origen = "facebook";
+    else if (ref.indexOf("whatsapp") > -1 || ref.indexOf("wa.me") > -1) origen = "whatsapp";
+    else if (ref.indexOf("google") > -1) origen = "google";
+    var celular = false;
+    try { celular = window.matchMedia("(pointer:coarse)").matches || window.innerWidth < 800; } catch (e) {}
+    medir("sesion", { dato: origen, dato2: celular ? "celular" : "pc" });
+  }
+
+  // 2) Producto visto (se engancha a lo que ya cuenta las vistas)
+  if (typeof window.registrarVista === "function") {
+    var vistaOriginal = window.registrarVista;
+    window.registrarVista = function (id) {
+      try { if (id) medir("ver_producto", { producto_id: String(id) }); } catch (e) {}
+      return vistaOriginal.apply(this, arguments);
+    };
+  }
+
+  // 3) Agregados al carrito: se compara el carrito antes y después de cada cambio
+  var antes = {}, restaurando = false;
+  function fotoCarrito() {
+    var f = {};
+    try { cart.forEach(function (i) { f[i.id] = (f[i.id] || 0) + (Number(i.qty) || 0); }); } catch (e) {}
+    return f;
+  }
+  antes = fotoCarrito();
+  if (typeof window.saveCart === "function") {
+    var guardarOriginal = window.saveCart;
+    window.saveCart = function () {
+      var r = guardarOriginal.apply(this, arguments);
+      try {
+        var ahora = fotoCarrito();
+        if (!restaurando) {
+          cart.forEach(function (i) {
+            var dif = (ahora[i.id] || 0) - (antes[i.id] || 0);
+            if (dif > 0) medir("agregar_carrito", { producto_id: String(i.id), valor: (Number(i.price) || 0) * dif });
+          });
+        }
+        antes = ahora;
+      } catch (e) {}
+      return r;
+    };
+  }
+  // Al cerrar una compra directa sin terminar, el carrito de antes se restaura: no es un agregado
+  if (typeof window.cerrarCheckout === "function") {
+    var cerrarOriginal = window.cerrarCheckout;
+    window.cerrarCheckout = function () {
+      restaurando = true;
+      try { return cerrarOriginal.apply(this, arguments); } finally { restaurando = false; }
+    };
+  }
+
+  // 4) Pedido: abrir, pasos y aviso de mínimo de compra
+  if (typeof window.abrirCheckout === "function") {
+    var abrirOriginal = window.abrirCheckout;
+    window.abrirCheckout = function () {
+      try { medir("abrir_checkout", { valor: totalCarrito() }); } catch (e) {}
+      return abrirOriginal.apply(this, arguments);
+    };
+  }
+  if (typeof window.irAStep === "function") {
+    var pasoOriginal = window.irAStep;
+    window.irAStep = function (n) {
+      try { if (n >= 1 && n <= 4) medir("paso_checkout", { dato: String(n) }); } catch (e) {}
+      return pasoOriginal.apply(this, arguments);
+    };
+  }
+  if (typeof window.mostrarPaso0 === "function") {
+    var minOriginal = window.mostrarPaso0;
+    window.mostrarPaso0 = function () {
+      try { medir("minimo_aviso"); } catch (e) {}
+      return minOriginal.apply(this, arguments);
+    };
+  }
+
+  // 5) Elecciones del cliente: envío o retiro, medio de pago
+  document.addEventListener("click", function (e) {
+    try {
+      var t = e.target;
+      var envio = t.closest && t.closest(".toggle-btn");
+      if (envio && envio.dataset.tipo) medir("elegir_envio", { dato: envio.dataset.tipo });
+      var pago = t.closest && t.closest(".pago-opcion");
+      // El clic en la etiqueta dispara otro sobre el input: se cuenta solo uno
+      if (pago && t.tagName !== "INPUT") {
+        setTimeout(function () {
+          var sel = document.querySelector('input[name="metodoPago"]:checked');
+          if (sel) medir("elegir_pago", { dato: sel.value });
+        }, 0);
+      }
+      if (t.closest && t.closest("#shWa")) medir("compartir", { dato: "whatsapp" });
+      if (t.closest && t.closest("#shCopiar")) medir("compartir", { dato: "copiar" });
+    } catch (er) {}
+  }, true);
+
+  // 6) Pedido confirmado: solo cuando el servidor devolvió el número de pedido
+  try {
+    var caja = document.getElementById("confirmTracking");
+    var ultimoPedido = "";
+    if (caja && window.MutationObserver) {
+      new MutationObserver(function () {
+        var nroEl = caja.querySelector(".tracking-nro");
+        var nro = nroEl ? nroEl.textContent.trim() : "";
+        if (!nro || nro === ultimoPedido) return;
+        ultimoPedido = nro;
+        var sel = document.querySelector('input[name="metodoPago"]:checked');
+        var ent = document.querySelector(".toggle-btn.selected");
+        medir("pedido_confirmado", {
+          dato: sel ? sel.value : "", dato2: ent ? ent.dataset.tipo : "", valor: totalCarrito()
+        });
+        enviar();
+      }).observe(caja, { childList: true, subtree: true, characterData: true, attributes: true });
+    }
+  } catch (e) {}
+
+  // 7) Búsquedas: se anotan cuando la persona deja de escribir
+  ["buscarDesktop", "buscarMobile"].forEach(function (id) {
+    var inp = document.getElementById(id);
+    if (!inp) return;
+    var espera = null;
+    inp.addEventListener("input", function () {
+      clearTimeout(espera);
+      espera = setTimeout(function () {
+        var q = inp.value.trim().toLowerCase();
+        if (q.length < 3) return;
+        var n = 0;
+        try { n = _coinciden.length; } catch (e) {}
+        medir("buscar", { dato: q, dato2: String(n) });
+      }, 1400);
+    });
+  });
+})();
