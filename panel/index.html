@@ -440,6 +440,9 @@ main{max-width:920px;margin:0 auto;padding:14px 13px 40px}
       <div class="lista" id="listaClientes"><div class="cargando">Cargando…</div></div>
     </section>
 
+    <!-- CRM comercial (lo arma crm.js) -->
+    <section class="seccion" id="sec-crm"></section>
+
     <!-- Cuenta -->
     <section class="seccion" id="sec-cuenta">
       <div class="titulo">Mi cuenta</div>
@@ -491,6 +494,7 @@ const SECCIONES = [
   { id: "placas",    nombre: "Placas" },
   { id: "config",    nombre: "Configuración" },
   { id: "clientes",  nombre: "Clientes" },
+  { id: "crm",       nombre: "CRM" },
   { id: "cuenta",    nombre: "Mi cuenta" },
 ];
 
@@ -741,6 +745,8 @@ function irA(id) {
   const el = $("sec-" + id);
   if (el) el.classList.add("on");
   window.scrollTo(0, 0);
+  document.body.classList.toggle("en-crm", id === "crm");
+  if (id !== "crm" && window.CRM) window.CRM.cerrarFicha(true);
 
   const cargadores = {
     pedidos:   () => { cargarResumen(); cargarPedidos(); },
@@ -752,6 +758,7 @@ function irA(id) {
     placas:    cargarPlacaProductos,
     config:    cargarConfig,
     clientes:  cargarClientes,
+    crm:       () => window.CRM && window.CRM.abrir(),
     cuenta:    cargarAuditoria,
   };
   if (cargadores[id]) cargadores[id]();
@@ -2818,5 +2825,6 @@ conRetraso($("buscarPlaca"),   v => { buscaPlaca = v;   cargarPlacaProductos(); 
   } catch {}
 })();
 </script>
+<script src="crm.js"></script>
 </body>
 </html>
