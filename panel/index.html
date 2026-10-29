@@ -1,5 +1,32 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  PANEL DE ADMINISTRACIÓN — JR Shop  (www.jrshop.com.ar/panel/)
+
+  Aplicación de una sola página. Se compone de:
+    · index.html  (este archivo)  estilos, estructura de pantallas y la lógica general
+    · crm.js      pantalla CRM de ventas (se carga al final)
+    · tienda.js   pantalla "Estadísticas" de la tienda (se carga al final)
+
+  Habla con la API de Railway (repo jrrailway → api/panel_api.py, crm_api.py,
+  tienda_api.py) usando un token de sesión en el encabezado X-Panel-Token.
+
+  ESTRUCTURA DE ESTE ARCHIVO
+    <style>            estilos agrupados por bloque (login, navegación, tarjetas, modal…)
+    <body>             una <section id="sec-…"> por pantalla
+    <script>           funciones agrupadas con títulos "// ── Nombre ──":
+                       Utilidades · Login · Navegación (SECCIONES, pintarNav, irA) ·
+                       Pedidos · Productos · Promociones · Mensajes · Medios de pago ·
+                       Zonas de envío · Configuración · Precios · Placas · Clientes ·
+                       Auditoría · Arranque
+
+  PARA AGREGAR UNA PANTALLA NUEVA
+    1) sumarla al array SECCIONES (id, nombre, grupo, ícono)
+    2) crear su <section id="sec-ID">
+    3) registrar su función de carga en irA()
+  OJO: este repo recibe actualizaciones automáticas del generador para el sitio
+  público, pero NO toca la carpeta panel/: los cambios acá se mantienen.
+-->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
